@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/overlay_root"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:gravity="center_horizontal"
+    android:background="@android:color/transparent">
+
+    <!-- Premium Action Bar Controls -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/drag_handle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:cardCornerRadius="16dp"
+        app:cardBackgroundColor="#E61A1A24"
+        app:cardElevation="10dp"
+        android:layout_marginBottom="4dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="6dp">
+
+            <!-- Drag Handle Bar Icon -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="&#9776;"
+                android:textColor="#FFB703"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginEnd="8dp"/>
+
+            <!-- Connection Status Pill -->
+            <View
+                android:id="@+id/connection_indicator"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:background="@drawable/circle_red"
+                android:layout_marginEnd="12dp" />
+
+            <!-- Modern Record Button -->
+            <Button
+                android:id="@+id/btn_overlay_record"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:text="REC CLIP"
+                android:backgroundTint="#E63946"
+                android:textColor="#FFFFFF"
+                android:paddingHorizontal="12dp"
+                android:layout_marginEnd="8dp"/>
+
+            <!-- Modern Close Button -->
+            <Button
+                android:id="@+id/btn_overlay_close"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:text="CHIUDI"
+                android:backgroundTint="#2B2D42"
+                android:textColor="#EDF2F4"
+                android:paddingHorizontal="12dp"/>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Scoreboard Banner (Rendered wide in 16:9 for recorded clips) -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/scoreboard_container"
+        android:layout_width="1600dp"
+        android:layout_height="30dp"
+        android:visibility="gone"
+        app:cardCornerRadius="4dp"
+        app:cardElevation="6dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal">
+
+            <!-- TEAM A LOGO -->
+            <FrameLayout
+                android:layout_width="54dp"
+                android:layout_height="match_parent"
+                android:background="#000000">
+                <ImageView
+                    android:id="@+id/logo_team_a"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="fitCenter"
+                    android:padding="1dp"/>
+            </FrameLayout>
+
+            <!-- TEAM A INFO (Flexible left side) -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:background="@drawable/bg_team_gradient"
+                android:paddingHorizontal="16dp"
+                android:gravity="center_vertical">
+                
+                <TextView
+                    android:id="@+id/serve_team_a"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="&#127952;"
+                    android:textSize="14sp"
+                    android:includeFontPadding="false"
+                    android:visibility="invisible"
+                    android:layout_marginEnd="6dp"/>
+
+                <TextView
+                    android:id="@+id/name_team_a"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:textColor="#FFFFFF"
+                    android:textSize="18sp"
+                    android:includeFontPadding="false"
+                    android:textStyle="bold"
+                    android:fontFamily="sans-serif-black"
+                    android:letterSpacing="0.05"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="TEAM A"/>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:layout_marginStart="8dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="SETS"
+                        android:textColor="#E0E0E0"
+                        android:textSize="7sp"
+                        android:includeFontPadding="false"
+                        android:letterSpacing="0.1"/>
+                    <TextView
+                        android:id="@+id/sets_team_a"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="#FFFFFF"
+                        android:textStyle="bold"
+                        android:includeFontPadding="false"
+                        android:textSize="13sp"/>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- SCORE TEAM A -->
+            <TextView
+                android:id="@+id/score_team_a"
+                android:layout_width="68dp"
+                android:layout_height="match_parent"
+                android:background="#D9000000"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:includeFontPadding="false"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:paddingHorizontal="4dp"
+                android:text="0"/>
+
+            <!-- VHP LOGO -->
+            <FrameLayout
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:background="#150b30"
+                android:paddingHorizontal="24dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="VHP"
+                    android:textColor="#ff8c42"
+                    android:textSize="16sp"
+                    android:includeFontPadding="false"
+                    android:textStyle="bold|italic"
+                    android:letterSpacing="0.05"/>
+            </FrameLayout>
+
+            <!-- SCORE TEAM B -->
+            <TextView
+                android:id="@+id/score_team_b"
+                android:layout_width="68dp"
+                android:layout_height="match_parent"
+                android:background="#D9000000"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:includeFontPadding="false"
+                android:textStyle="bold"
+                android:gravity="center"
+                android:paddingHorizontal="4dp"
+                android:text="0"/>
+
+            <!-- TEAM B INFO (Flexible right side) -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="match_parent"
+                android:orientation="horizontal"
+                android:background="@drawable/bg_team_gradient_rev"
+                android:paddingHorizontal="16dp"
+                android:gravity="center_vertical">
+                
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:layout_marginEnd="8dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="SETS"
+                        android:textColor="#E0E0E0"
+                        android:textSize="7sp"
+                        android:includeFontPadding="false"
+                        android:letterSpacing="0.1"/>
+                    <TextView
+                        android:id="@+id/sets_team_b"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textColor="#FFFFFF"
+                        android:textStyle="bold"
+                        android:includeFontPadding="false"
+                        android:textSize="13sp"/>
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/name_team_b"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:textColor="#FFFFFF"
+                    android:textSize="18sp"
+                    android:includeFontPadding="false"
+                    android:textStyle="bold"
+                    android:fontFamily="sans-serif-black"
+                    android:letterSpacing="0.05"
+                    android:gravity="end"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="TEAM B"/>
+
+                <TextView
+                    android:id="@+id/serve_team_b"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="&#127952;"
+                    android:textSize="14sp"
+                    android:includeFontPadding="false"
+                    android:visibility="invisible"
+                    android:layout_marginStart="6dp"/>
+            </LinearLayout>
+
+            <!-- TEAM B LOGO -->
+            <FrameLayout
+                android:layout_width="54dp"
+                android:layout_height="match_parent"
+                android:background="#000000">
+                <ImageView
+                    android:id="@+id/logo_team_b"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="fitCenter"
+                    android:padding="1dp"/>
+            </FrameLayout>
+
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+</LinearLayout>

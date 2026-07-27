@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Scoreboard VNL - JPN vs CAN</title>
+<style>
+  body {
+    background: #f0f0f0;
+    display: flex;
+    justify-content: center;
+    padding: 40px;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+  .scoreboard {
+    max-width: 520px;
+    width: 100%;
+  }
+  .bar {
+    display: flex;
+    align-items: stretch;
+    height: 56px;
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  }
+  .flag {
+    width: 56px;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .team {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    gap: 10px;
+  }
+  .team.jpn { background: linear-gradient(90deg, #3a1f6d, #2a1650); }
+  .team.can { background: linear-gradient(90deg, #2a1650, #3a1f6d); }
+  .ball {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #d4a017;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+  .team-name {
+    color: #fff;
+    font-weight: 800;
+    font-size: 22px;
+    letter-spacing: 1px;
+  }
+  .sets {
+    text-align: center;
+  }
+  .team.can .sets {
+    order: -1;
+  }
+  .team.can .team-name {
+    margin-left: auto;
+  }
+  .team.jpn .sets {
+    margin-left: auto;
+  }
+  .sets-label {
+    color: #c9a8e0;
+    font-size: 9px;
+    letter-spacing: 1px;
+  }
+  .sets-value {
+    color: #fff;
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 1;
+  }
+  .score {
+    background: #1a0f3d;
+    color: #fff;
+    font-weight: 800;
+    font-size: 26px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+  }
+  .vnl-logo {
+    background: #150b30;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+  }
+  .vnl-logo span {
+    color: #ff8c42;
+    font-weight: 900;
+    font-style: italic;
+    font-size: 20px;
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+
+<div class="scoreboard">
+  <div class="bar">
+
+    <div class="flag">
+      <svg width="34" height="24" viewBox="0 0 34 24">
+        <rect width="34" height="24" fill="#fff" stroke="#ccc" stroke-width="0.5"/>
+        <circle cx="17" cy="12" r="7" fill="#bc002d"/>
+      </svg>
+    </div>
+
+    <div class="team jpn">
+      <div class="ball">🏐</div>
+      <span class="team-name">JPN</span>
+      <div class="sets">
+        <div class="sets-label">SETS</div>
+        <div class="sets-value">0</div>
+      </div>
+    </div>
+
+    <div class="score">4</div>
+
+    <div class="vnl-logo"><span>VNL</span></div>
+
+    <div class="score">6</div>
+
+    <div class="team can">
+      <div class="sets">
+        <div class="sets-label">SETS</div>
+        <div class="sets-value">0</div>
+      </div>
+      <span class="team-name">CAN</span>
+    </div>
+
+    <div class="flag">
+      <svg width="34" height="24" viewBox="0 0 34 24">
+        <rect width="34" height="24" fill="#fff" stroke="#ccc" stroke-width="0.5"/>
+        <path d="M0 0h8v24H0zM26 0h8v24h-8z" fill="#d52b1e"/>
+        <path d="M17 5 L19 10 L24 10 L20 13 L21 18 L17 15 L13 18 L14 13 L10 10 L15 10 Z" fill="#d52b1e"/>
+      </svg>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>
