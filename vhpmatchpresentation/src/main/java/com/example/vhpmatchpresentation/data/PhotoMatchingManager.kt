@@ -13,10 +13,8 @@ class PhotoMatchingManager(private val context: Context) {
     companion object {
         fun normalizeName(raw: String): String {
             if (raw.isBlank()) return ""
-            // Strip file extension if present
             val withoutExt = raw.substringBeforeLast(".")
             val normalized = Normalizer.normalize(withoutExt, Normalizer.Form.NFD)
-            // Remove diacritical marks & non-alphanumeric chars, to lower case
             return normalized
                 .replace("\\p{InCombiningDiacriticalMarks}+".toRegex(), "")
                 .lowercase()
@@ -24,12 +22,15 @@ class PhotoMatchingManager(private val context: Context) {
         }
     }
 
-    fun savePhotoMapping(playerId: String, photoUri: String) {
-        prefs.edit().putString(playerId, photoUri).apply()
+    fun savePhotoMapping(key: String, photoUri: String) {
+        if (key.isBlank() || photoUri.isBlank()) return
+        prefs.edit().putString(key, photoUri).apply()
     }
 
     fun getPhotoUriForPlayer(playerId: String): String? {
-        return prefs.getString(playerId, null)
+        val direct = prefs.getString(playerId, null)
+        if (!direct.isNullOrEmpty()) return direct
+        return null
     }
 
     fun removePhotoMapping(playerId: String) {
@@ -46,8 +47,9 @@ class PhotoMatchingManager(private val context: Context) {
         players: List<PlayerPresentation>
     ): Map<String, Uri> {
         val matches = mutableMapOf<String, Uri>()
-        
-        // Take persistable URI permissions where possible
+        val unusedUris = uris.toMutableList()
+
+        // 1. Take persistable URI permissions on ALL selected photo URIs
         for (uri in uris) {
             try {
                 context.contentResolver.takePersistableUriPermission(
@@ -57,24 +59,50 @@ class PhotoMatchingManager(private val context: Context) {
             } catch (e: Exception) {
                 Log.w("PhotoMatching", "Could not take persistable permission for $uri", e)
             }
+        }
 
-            val fileName = getFileNameFromUri(uri) ?: uri.lastPathSegment ?: continue
-            val normalizedFile = normalizeName(fileName)
+        // 2. Pass 1: Match by exact or partial player name / display name / jersey number in file name
+        for (player in players) {
+            val normalizedPlayerName = normalizeName(player.name)
+            val normalizedDisplayName = normalizeName(player.displayName)
+            val playerNum = player.number.trim()
 
-            for (player in players) {
-                val normalizedPlayerName = normalizeName(player.name)
-                val normalizedDisplayName = normalizeName(player.displayName)
+            val matchedUri = unusedUris.firstOrNull { uri ->
+                val fileName = getFileNameFromUri(uri) ?: uri.lastPathSegment ?: ""
+                val normalizedFile = normalizeName(fileName)
 
-                if (normalizedFile.isNotEmpty() &&
-                    (normalizedFile == normalizedPlayerName || normalizedFile == normalizedDisplayName ||
-                     normalizedFile.contains(normalizedPlayerName) || normalizedPlayerName.contains(normalizedFile))
-                ) {
-                    matches[player.id] = uri
-                    savePhotoMapping(player.id, uri.toString())
-                    break
-                }
+                if (normalizedFile.isEmpty()) return@firstOrNull false
+
+                val isNameMatch = (normalizedPlayerName.length > 2 && (normalizedFile.contains(normalizedPlayerName) || normalizedPlayerName.contains(normalizedFile))) ||
+                        (normalizedDisplayName.length > 2 && (normalizedFile.contains(normalizedDisplayName) || normalizedDisplayName.contains(normalizedFile)))
+
+                val isNumMatch = playerNum.isNotEmpty() && (normalizedFile == playerNum || normalizedFile == "num$playerNum" || normalizedFile == "p$playerNum" || normalizedFile.contains("player$playerNum"))
+
+                isNameMatch || isNumMatch
+            }
+
+            if (matchedUri != null) {
+                matches[player.id] = matchedUri
+                savePhotoMapping(player.id, matchedUri.toString())
+                savePhotoMapping(player.name, matchedUri.toString())
+                savePhotoMapping(player.number, matchedUri.toString())
+                unusedUris.remove(matchedUri)
             }
         }
+
+        // 3. Pass 2: Sequential Fallback for remaining unmatched players
+        val unmatchedPlayers = players.filter { !matches.containsKey(it.id) }
+        for (i in unmatchedPlayers.indices) {
+            if (i < unusedUris.size) {
+                val player = unmatchedPlayers[i]
+                val uri = unusedUris[i]
+                matches[player.id] = uri
+                savePhotoMapping(player.id, uri.toString())
+                savePhotoMapping(player.name, uri.toString())
+                savePhotoMapping(player.number, uri.toString())
+            }
+        }
+
         return matches
     }
 
