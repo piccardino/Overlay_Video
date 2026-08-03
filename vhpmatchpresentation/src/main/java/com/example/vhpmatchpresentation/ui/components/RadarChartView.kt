@@ -20,8 +20,8 @@ class RadarChartView @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
-    private val labels = arrayOf("ATT", "BLK", "SRV", "RCV", "DEF", "SET")
-    private var values = floatArrayOf(75f, 70f, 80f, 68f, 72f, 65f)
+    private val labels = arrayOf("ATT", "BLK", "SRV", "RCV", "DEF")
+    private var values = floatArrayOf(75f, 70f, 80f, 68f, 72f)
     private var teamColor: Int = Color.parseColor("#0284C7")
 
     private var animationProgress = 1.0f
@@ -49,7 +49,7 @@ class RadarChartView @JvmOverloads constructor(
 
     private val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
-        textSize = 24f
+        textSize = 22f
         typeface = Typeface.DEFAULT_BOLD
         textAlign = Paint.Align.CENTER
     }
@@ -63,7 +63,6 @@ class RadarChartView @JvmOverloads constructor(
         values[2] = stats.serve.coerceIn(0, 100).toFloat()
         values[3] = stats.receive.coerceIn(0, 100).toFloat()
         values[4] = stats.defense.coerceIn(0, 100).toFloat()
-        values[5] = stats.set.coerceIn(0, 100).toFloat()
 
         try {
             teamColor = Color.parseColor(teamColorHex)
@@ -100,7 +99,7 @@ class RadarChartView @JvmOverloads constructor(
         val centerX = width / 2f
         val centerY = height / 2f
 
-        val padding = 44f
+        val padding = 36f
         val maxRadius = (Math.min(width, height) / 2f) - padding
         if (maxRadius <= 0) return
 
@@ -128,7 +127,7 @@ class RadarChartView @JvmOverloads constructor(
 
             canvas.drawLine(centerX, centerY, endX, endY, axisPaint)
 
-            val labelRadius = maxRadius + 28f
+            val labelRadius = maxRadius + 22f
             val labelX = (centerX + labelRadius * cos(angle.toDouble())).toFloat()
             val labelY = (centerY + labelRadius * sin(angle.toDouble())).toFloat() + (labelPaint.textSize / 3f)
 
