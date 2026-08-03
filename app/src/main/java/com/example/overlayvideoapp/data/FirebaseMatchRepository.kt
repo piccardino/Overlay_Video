@@ -72,17 +72,17 @@ class FirebaseMatchRepository {
                     val current = _matchData.value ?: MatchData()
                     
                     var finalNameA = current.team_name_a
-                    if (!teamNameA.isNullOrEmpty() && teamNameA != "TEAM A") {
+                    if (!teamNameA.isNullOrEmpty() && teamNameA != "TEAM A" && teamNameA != "Team A") {
                         finalNameA = teamNameA
-                    } else if (finalNameA.isEmpty()) {
-                        finalNameA = teamNameA ?: "TEAM A"
+                    } else if (finalNameA.isEmpty() || finalNameA == "TEAM A" || finalNameA == "Team A") {
+                        if (!teamNameA.isNullOrEmpty()) finalNameA = teamNameA
                     }
 
                     var finalNameB = current.team_name_b
-                    if (!teamNameB.isNullOrEmpty() && teamNameB != "TEAM B") {
+                    if (!teamNameB.isNullOrEmpty() && teamNameB != "TEAM B" && teamNameB != "Team B") {
                         finalNameB = teamNameB
-                    } else if (finalNameB.isEmpty()) {
-                        finalNameB = teamNameB ?: "TEAM B"
+                    } else if (finalNameB.isEmpty() || finalNameB == "TEAM B" || finalNameB == "Team B") {
+                        if (!teamNameB.isNullOrEmpty()) finalNameB = teamNameB
                     }
 
                     _matchData.value = current.copy(
@@ -121,17 +121,17 @@ class FirebaseMatchRepository {
                     
                     val current = _matchData.value ?: MatchData()
                     var finalNameA = current.team_name_a
-                    if (!formNameA.isNullOrEmpty() && formNameA != "TEAM A") {
+                    if (!formNameA.isNullOrEmpty() && formNameA != "TEAM A" && formNameA != "Team A") {
                         finalNameA = formNameA
-                    } else if (finalNameA.isEmpty()) {
-                        finalNameA = formNameA ?: "TEAM A"
+                    } else if (finalNameA.isEmpty() || finalNameA == "TEAM A" || finalNameA == "Team A") {
+                        if (!formNameA.isNullOrEmpty()) finalNameA = formNameA
                     }
 
                     var finalNameB = current.team_name_b
-                    if (!formNameB.isNullOrEmpty() && formNameB != "TEAM B") {
+                    if (!formNameB.isNullOrEmpty() && formNameB != "TEAM B" && formNameB != "Team B") {
                         finalNameB = formNameB
-                    } else if (finalNameB.isEmpty()) {
-                        finalNameB = formNameB ?: "TEAM B"
+                    } else if (finalNameB.isEmpty() || finalNameB == "TEAM B" || finalNameB == "Team B") {
+                        if (!formNameB.isNullOrEmpty()) finalNameB = formNameB
                     }
                     
                     var scoreA = current.score_team_a
@@ -171,17 +171,17 @@ class FirebaseMatchRepository {
 
                     val current = _matchData.value ?: MatchData()
                     var finalNameA = current.team_name_a
-                    if (!setNumA.isNullOrEmpty() && setNumA != "TEAM A") {
+                    if (!setNumA.isNullOrEmpty() && setNumA != "TEAM A" && setNumA != "Team A") {
                         finalNameA = setNumA
-                    } else if (finalNameA.isEmpty()) {
-                        finalNameA = setNumA ?: "TEAM A"
+                    } else if (finalNameA.isEmpty() || finalNameA == "TEAM A" || finalNameA == "Team A") {
+                        if (!setNumA.isNullOrEmpty()) finalNameA = setNumA
                     }
 
                     var finalNameB = current.team_name_b
-                    if (!setNumB.isNullOrEmpty() && setNumB != "TEAM B") {
+                    if (!setNumB.isNullOrEmpty() && setNumB != "TEAM B" && setNumB != "Team B") {
                         finalNameB = setNumB
-                    } else if (finalNameB.isEmpty()) {
-                        finalNameB = setNumB ?: "TEAM B"
+                    } else if (finalNameB.isEmpty() || finalNameB == "TEAM B" || finalNameB == "Team B") {
+                        if (!setNumB.isNullOrEmpty()) finalNameB = setNumB
                     }
 
                     _matchData.value = current.copy(
