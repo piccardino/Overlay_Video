@@ -141,7 +141,6 @@ class PresentationOverlayService : Service() {
         setupDragTouchListener(binding?.dragHeader, params)
         setupDragTouchListener(binding?.minimizedBubble, params)
 
-        // Set initial play icon
         binding?.btnPlayPause?.setImageResource(R.drawable.ic_play)
 
         binding?.btnPlayPause?.setOnClickListener {
@@ -342,7 +341,7 @@ class PresentationOverlayService : Service() {
 
     private fun loadLogo(imageView: ImageView, logoStr: String) {
         if (logoStr.isEmpty()) {
-            imageView.setImageResource(R.drawable.ic_player_silhouette)
+            imageView.setImageResource(R.drawable.logo2)
             return
         }
 
@@ -361,6 +360,32 @@ class PresentationOverlayService : Service() {
         }
 
         imageView.load(logoStr) {
+            placeholder(R.drawable.logo2)
+            error(R.drawable.logo2)
+        }
+    }
+
+    private fun loadPlayerPhoto(imageView: ImageView, photoUri: String?) {
+        if (photoUri.isNullOrEmpty()) {
+            imageView.setImageResource(R.drawable.ic_player_silhouette)
+            return
+        }
+
+        if (photoUri.startsWith("data:image") || (!photoUri.startsWith("http") && !photoUri.startsWith("content") && !photoUri.startsWith("file") && photoUri.length > 100)) {
+            try {
+                val cleanBase64 = if (photoUri.contains(",")) photoUri.substringAfter(",") else photoUri
+                val decodedBytes = Base64.decode(cleanBase64, Base64.DEFAULT)
+                val bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
+                if (bitmap != null) {
+                    imageView.setImageBitmap(bitmap)
+                    return
+                }
+            } catch (e: Exception) {
+                Log.e("PresentationOverlay", "Error decoding base64 player photo", e)
+            }
+        }
+
+        imageView.load(photoUri) {
             placeholder(R.drawable.ic_player_silhouette)
             error(R.drawable.ic_player_silhouette)
         }
@@ -422,14 +447,7 @@ class PresentationOverlayService : Service() {
             teamBar.setBackgroundColor(Color.parseColor("#0284C7"))
         }
 
-        if (!player.photoUri.isNullOrEmpty()) {
-            imgPhoto.load(player.photoUri) {
-                placeholder(R.drawable.ic_player_silhouette)
-                error(R.drawable.ic_player_silhouette)
-            }
-        } else {
-            imgPhoto.setImageResource(R.drawable.ic_player_silhouette)
-        }
+        loadPlayerPhoto(imgPhoto, player.photoUri)
 
         radarView.setStats(player.stats, team.primaryColorHex, animate = true)
 

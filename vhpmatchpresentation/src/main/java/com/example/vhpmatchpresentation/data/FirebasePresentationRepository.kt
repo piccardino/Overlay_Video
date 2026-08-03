@@ -62,8 +62,6 @@ class FirebasePresentationRepository(private val context: Context) {
     }
 
     private fun parseFullUserSnapshot(userSnap: DataSnapshot) {
-        logAllTeamNamePathsSafely(userSnap, "users")
-
         var nameA = ""
         var nameB = ""
         var logoA = ""
@@ -146,6 +144,22 @@ class FirebasePresentationRepository(private val context: Context) {
                 if (playersB.isEmpty()) playersB.addAll(parsePlayerListSnapshot(formationSnap.child("playersB"), "B"))
             }
 
+            // Check matchData/rosters (Always update player details if rosters node was changed from web app)
+            val rostersSnap = matchDataSnap.child("rosters")
+            if (rostersSnap.exists()) {
+                val teamKeys = rostersSnap.children.mapNotNull { it.key }
+                if (teamKeys.isNotEmpty()) {
+                    if (playersA.isEmpty()) {
+                        playersA.addAll(parsePlayerListSnapshot(rostersSnap.child(teamKeys[0]), "A"))
+                    }
+                }
+                if (teamKeys.size > 1) {
+                    if (playersB.isEmpty()) {
+                        playersB.addAll(parsePlayerListSnapshot(rostersSnap.child(teamKeys[1]), "B"))
+                    }
+                }
+            }
+
             // Check matchData/colors
             val colorsSnap = matchDataSnap.child("colors")
             if (colorsSnap.exists()) {
@@ -182,25 +196,6 @@ class FirebasePresentationRepository(private val context: Context) {
             setsB = setsB,
             servingTeam = serving
         )
-    }
-
-    private fun logAllTeamNamePathsSafely(snap: DataSnapshot, path: String) {
-        if (!snap.exists()) return
-        if (snap.childrenCount == 0L) {
-            try {
-                val strVal = snap.getValue(String::class.java)
-                if (strVal != null && (strVal == "VPM" || strVal == "VHU" || strVal.contains("VPM") || strVal.contains("VHU"))) {
-                    Log.i("FirebaseTeamPath", "FOUND TARGET TEAM NAME '$strVal' AT PATH: $path")
-                }
-            } catch (e: Exception) {
-                // Ignore non-string primitive nodes
-            }
-        } else {
-            for (child in snap.children) {
-                val childKey = child.key ?: continue
-                logAllTeamNamePathsSafely(child, "$path/$childKey")
-            }
-        }
     }
 
     private fun extractString(snap: DataSnapshot, vararg keys: String): String {
@@ -243,6 +238,21 @@ class FirebasePresentationRepository(private val context: Context) {
                 ?: child.child("ruolo").getValue(String::class.java)
                 ?: "Outside Hitter"
 
+            val fbPhotoUri = child.child("photoUrl").getValue(String::class.java)
+                ?: child.child("photo").getValue(String::class.java)
+                ?: child.child("foto").getValue(String::class.java)
+                ?: child.child("image").getValue(String::class.java)
+                ?: child.child("picture").getValue(String::class.java)
+                ?: child.child("url").getValue(String::class.java)
+                ?: child.child("uri").getValue(String::class.java)
+                ?: ""
+
+            val localPhotoUri = photoManager.getPhotoUriForPlayer(id)
+                ?: photoManager.getPhotoUriForPlayer(name)
+                ?: photoManager.getPhotoUriForPlayer(number)
+
+            val finalPhotoUri = if (fbPhotoUri.isNotEmpty()) fbPhotoUri else (localPhotoUri ?: "")
+
             val statsSnap = child.child("stats").takeIf { it.exists() } ?: child.child("statistiche")
             val attack = parseStat(statsSnap, "spike", "attacco", 75)
             val block = parseStat(statsSnap, "block", "muro", 70)
@@ -251,8 +261,6 @@ class FirebasePresentationRepository(private val context: Context) {
             val defense = parseStat(statsSnap, "defense", "difesa", 72)
             val setVal = parseStat(statsSnap, "set", "alzata", 65)
 
-            val localPhotoUri = photoManager.getPhotoUriForPlayer(id)
-
             list.add(
                 PlayerPresentation(
                     id = id,
@@ -260,7 +268,7 @@ class FirebasePresentationRepository(private val context: Context) {
                     displayName = name,
                     number = number,
                     role = role,
-                    photoUri = localPhotoUri,
+                    photoUri = finalPhotoUri,
                     stats = PlayerStats(
                         attack = attack,
                         block = block,

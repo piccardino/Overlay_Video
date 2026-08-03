@@ -21,11 +21,13 @@
             android:background="#0284C7"
             android:layout_marginBottom="4dp" />
 
-        <!-- Top: Player Photo (110dp x 110dp) -->
+        <!-- Top: Player Photo Frame (Clean Dark Background #1E293B) -->
         <FrameLayout
             android:layout_width="110dp"
             android:layout_height="110dp"
             android:layout_gravity="center_horizontal"
+            android:background="#1E293B"
+            android:padding="2dp"
             android:layout_marginBottom="4dp">
 
             <ImageView
@@ -90,13 +92,13 @@
                 android:id="@+id/txtTeamShortName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="TEAM A"
+                android:text="VPM"
                 android:textColor="#94A3B8"
                 android:textSize="10sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
-        <!-- Bottom: 6-Axis Radar Chart (110dp x 110dp) -->
+        <!-- Bottom: 5-Axis Pentagon Radar Chart -->
         <com.example.vhpmatchpresentation.ui.components.RadarChartView
             android:id="@+id/radarChartView"
             android:layout_width="110dp"
