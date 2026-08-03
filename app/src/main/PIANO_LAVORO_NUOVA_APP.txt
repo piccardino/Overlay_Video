@@ -1,0 +1,87 @@
+PIANO DI LAVORO — NUOVA APP ANDROID "VHP Match Presentation"
+
+OBIETTIVO
+Creare una nuova applicazione Android, distinta dall'attuale OverlayVideoApp, che mantenga login Google/Firebase, overlay fluttuante, punteggio, loghi, camera e registrazione. Prima dell'inizio della partita dovrà mostrare una presentazione professionale in stile VNL: squadre, formazioni e schede animate dei giocatori con ruolo, foto e radar delle statistiche recuperate dal roster Firebase.
+
+1. CREAZIONE SICURA DELLA NUOVA APP
+- Duplicare il modulo Android attuale in un nuovo modulo, senza modificare o sovrascrivere il modulo "app" esistente.
+- Usare un nuovo nome visibile: "VHP Match Presentation" (modificabile prima della pubblicazione).
+- Definire un nuovo applicationId e namespace, ad esempio com.example.vhpmatchpresentation, così le due APK possono essere installate contemporaneamente sul telefono.
+- Mantenere le configurazioni Android attuali: minSdk 24, orientamento libero, overlay di sistema, camera, registrazione, ViewBinding, Coil, Firebase Authentication, Firebase Realtime Database e Google Sign-In.
+- Aggiungere la nuova app al progetto Firebase oppure registrare il suo nuovo package name nel progetto Firebase esistente; aggiornare il google-services.json del nuovo modulo. Senza questo passaggio il login Google della nuova app non funzionerà.
+
+2. VERIFICA DEL MODELLO DATI FIREBASE (PRIMA DI SVILUPPARE LA UI)
+- Mappare i nodi già usati dall'app attuale: users/{uid}/settings, matchData/formation e matchData/liveMatchProgress.
+- Verificare nel database il percorso e i campi del roster: identificatore giocatore, nome, cognome/nome visualizzato, ruolo, statistiche e valori del radar.
+- Verificare dove sono disponibili, per entrambe le squadre: nome squadra, URL del logo e colore ufficiale della squadra. L'app attuale legge già logoA/logoB dalle settings, ma non legge i colori.
+- Concordare una chiave stabile del giocatore. Preferenza: playerId salvato nel roster; fallback: nome normalizzato. Il nome non deve essere l'unica chiave Firebase se esistono omonimi.
+- Estendere il repository con modelli chiari: TeamPresentation, PlayerPresentation, PlayerStats e MatchPresentationData. Non mescolare questi dati con il solo MatchData del punteggio.
+
+3. SCHERMATA DI PREPARAZIONE PRE-PARTITA
+- Dopo il login Google/Firebase, introdurre una schermata "Preparazione partita" prima del pulsante di avvio overlay.
+- Caricare squadra A e B, logo, colori e i giocatori disponibili dal database dell'utente/loggato.
+- Permettere di selezionare o confermare l'ordine dei giocatori per ogni squadra; se il DB invia già la formazione, usarla come valore iniziale.
+- Mostrare un riepilogo con squadre, numero di giocatori e stato di completezza (dati roster/foto mancanti).
+- Disabilitare "Avvia presentazione" solo per errori indispensabili; se mancano foto o statistiche, consentire comunque l'uso con placeholder e dati di fallback.
+
+4. IMPORTAZIONE E ASSOCIAZIONE DELLE FOTO
+- Aggiungere il pulsante "Importa foto giocatori" nella preparazione, prima di "Avvia overlay".
+- Aprire il selettore documenti Android per immagini (JPG, JPEG, PNG, WEBP) e richiedere accesso persistente agli URI selezionati.
+- Associare automaticamente ogni foto al giocatore tramite il nome file normalizzato: minuscole, spazi/trattini/apostrofi rimossi, accenti convertiti. Esempio: "Marco-Rossi.jpg" -> "marcorossi".
+- Prevedere una lista di conferma per correggere manualmente gli abbinamenti ambigui, duplicati o non trovati.
+- Salvare localmente l'associazione playerId -> URI foto nel dispositivo. Non caricare immagini nel Realtime Database. Se servirà la sincronizzazione tra telefoni, aggiungere in una fase successiva Firebase Storage e salvare solo l'URL nel DB.
+- Usare temporaneamente C:\Users\zeusp\Downloads\siluette.jpg come placeholder per le foto non associate; copiarlo nelle risorse della nuova app in fase di sviluppo.
+
+5. REGIA DELLA PRESENTAZIONE D'APERTURA
+- Aggiungere un controller della sequenza alla finestra overlay: avvio, pausa, giocatore precedente/successivo, salta squadra e chiudi presentazione.
+- Stato sequenza: INTRO_SQUADRE -> FORMAZIONE_A -> GIOCATORI_A -> FORMAZIONE_B -> GIOCATORI_B -> SCOREBOARD.
+- All'avvio mostrare due tabelle animate, una per squadra, con: logo, nome squadra, elenco dei giocatori e colore preso dal DB.
+- Le tabelle entrano con movimento laterale complementare e dissolvenza, restano leggibili alcuni secondi e lasciano poi spazio alle schede singole.
+- Presentare i giocatori uno alla volta nell'ordine della formazione. Durata e avanzamento devono poter essere manuali per adattarsi alla ripresa video; può esistere anche autoplay configurabile.
+- Terminata la presentazione, ritornare automaticamente al tabellone live già presente nell'overlay.
+
+6. SCHEDA GIOCATORE
+- Layout orizzontale, leggibile in video: foto/sagoma a sinistra, nome grande, ruolo, squadra e radar a destra.
+- Usare l'immagine associata o il placeholder; non mostrare immagini deformate (crop centrale e dimensioni costanti).
+- Recuperare dal roster le statistiche reali del giocatore e disegnare un radar nativo Android equivalente al canvas richiesto:
+  <canvas id="radarChart" width="200" height="200" style="max-width:100%;"></canvas>
+  Il risultato visivo deve essere un grafico radar 200x200 con assi, griglia, area colorata della squadra e label delle statistiche.
+- Stabilire un set coerente di 5-6 metriche in base a ciò che il roster espone (ad esempio attacco, muro, battuta, ricezione, difesa, alzata). Valori mancanti = 0/N.D. senza interrompere la scheda.
+- Inserire una transizione elegante tra una scheda e la successiva: uscita breve, aggiornamento dati, entrata dal lato opposto; nessun lampeggio del layout.
+
+7. DESIGN PROFESSIONALE ISPIRATO AL VNL
+- Definire una grafica originale ispirata al linguaggio televisivo VNL, senza copiare loghi, asset o layout proprietari.
+- Usare fondi scuri/trasparenti sicuri per overlay video, tipografia ad alto contrasto, barre con colori squadra, elementi geometrici dinamici e gerarchia netta tra nome, ruolo e statistiche.
+- Creare componenti riutilizzabili per: intestazione squadra, riga giocatore, tabella formazione, scheda giocatore, radar, comandi regia e stato di caricamento.
+- Testare leggibilità sia in verticale sia in orizzontale e su differenti dimensioni Android.
+
+8. INTEGRAZIONE CON LE FUNZIONI ESISTENTI
+- Conservare la lettura in tempo reale di punteggio, set, servizio, nomi squadra e loghi.
+- Mantenere l'overlay trascinabile, chiudibile e la registrazione della sola grafica overlay.
+- Non avviare la sequenza di presentazione ogni volta che l'overlay viene riaperto: salvare uno stato di sessione e offrire un comando esplicito "Ripeti presentazione".
+- Gestire riconnessione Firebase e caricamento asincrono di logo, foto e statistiche senza bloccare l'overlay.
+
+9. TEST E CRITERI DI ACCETTAZIONE
+- Login Google funziona nella nuova app e usa i dati Firebase dell'utente autenticato.
+- Le due applicazioni restano installabili e funzionanti in parallelo sullo stesso telefono.
+- Le tabelle iniziali mostrano per entrambe le squadre nome, logo, colore DB e formazione corretta.
+- Ogni giocatore viene presentato una volta con nome, ruolo, foto associata/placeholder e radar da statistiche roster.
+- Una foto con nome valido si abbina automaticamente; i casi non validi sono correggibili manualmente.
+- L'overlay torna al tabellone live e continua a ricevere aggiornamenti punteggio durante/dopo la presentazione.
+- Prove su dispositivo Android reale: autorizzazioni overlay, camera, selezione foto, rotazione, background, memoria e registrazione video.
+
+10. DECISIONI DA CONFERMARE PRIMA DELL'IMPLEMENTAZIONE
+- Nome definitivo e package name della nuova app.
+- Struttura reale del nodo roster e i nomi esatti dei campi statistiche, ruoli, loghi e colori.
+- Numero di giocatori da mostrare (tutti quelli convocati o solo sestetto iniziale) e ordine desiderato.
+- Durata/autoplay delle animazioni e presenza dei controlli manuali visibili nell'overlay registrato.
+- Necessità o meno di sincronizzare le foto tra più dispositivi (Firebase Storage).
+
+ORDINE CONSIGLIATO DI IMPLEMENTAZIONE
+1. Nuovo modulo/app e Firebase funzionanti.
+2. Repository e modelli per squadre, roster e statistiche.
+3. Preparazione partita e importazione/associazione foto.
+4. Tabelle squadra animate.
+5. Scheda giocatore e radar nativo.
+6. Integrazione nella finestra overlay e comandi di regia.
+7. Rifinitura grafica, test su telefono e build APK separata.

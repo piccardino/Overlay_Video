@@ -31,3 +31,5 @@ plugins {
 
 rootProject.name = "OverlayVideoApp"
 include(":app")
+include(":vhpmatchpresentation")
+

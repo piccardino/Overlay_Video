@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">VHP Match Presentation</string>
+    <string name="title_match_prep">VHP Match Presentation</string>
+    <string name="subtitle_match_prep">VNL-Style Pre-Match Presentation Setup</string>
+    <string name="btn_import_photos">IMPORT PLAYER PHOTOS</string>
+    <string name="btn_verify_mappings">VERIFY PHOTO MATCHES</string>
+    <string name="btn_start_overlay">START OVERLAY PRESENTATION</string>
+    <string name="btn_account">Account</string>
+    <string name="btn_skip">SKIP</string>
+    <string name="btn_score">SCORE</string>
+    <string name="btn_assign_photo">Assign Photo</string>
+    <string name="btn_change_photo">Change Photo</string>
+    <string name="btn_close">Close</string>
+    <string name="dialog_verify_photos_title">Verify Player Photos</string>
+    <string name="msg_no_players">No players available in roster.</string>
+    <string name="msg_overlay_permission_denied">Overlay permission not granted</string>
+    <string name="msg_presentation_overlay_started">Presentation Overlay Started!</string>
+    <string name="default_role">Outside Hitter</string>
+    <string name="default_team_a">TEAM A</string>
+    <string name="default_team_b">TEAM B</string>
+</resources>

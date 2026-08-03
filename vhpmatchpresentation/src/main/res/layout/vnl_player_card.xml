@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="300dp"
+    android:layout_height="wrap_content"
+    android:fillViewport="true"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#000000"
+        android:padding="8dp"
+        android:gravity="center_horizontal">
+
+        <!-- Top: Team Accent Bar -->
+        <View
+            android:id="@+id/playerTeamBar"
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            android:background="#0284C7"
+            android:layout_marginBottom="4dp" />
+
+        <!-- Top: Player Photo (110dp x 110dp) -->
+        <FrameLayout
+            android:layout_width="110dp"
+            android:layout_height="110dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="4dp">
+
+            <ImageView
+                android:id="@+id/imgPlayerPhoto"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_player_silhouette"
+                android:contentDescription="Player Photo" />
+        </FrameLayout>
+
+        <!-- Middle: Jersey Number & Player Name (Full 2-line Wrapping, No Truncation) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="2dp">
+
+            <TextView
+                android:id="@+id/txtPlayerNumber"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="#999"
+                android:textColor="#00FBFF"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginEnd="6dp" />
+
+            <TextView
+                android:id="@+id/txtPlayerName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="ALESSANDRO GIANNELLI"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:maxLines="2"
+                android:lineSpacingExtra="1dp" />
+        </LinearLayout>
+
+        <!-- Role & Team Badge Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="4dp">
+
+            <TextView
+                android:id="@+id/txtPlayerRole"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="OUTSIDE HITTER"
+                android:textColor="#CBD5E1"
+                android:textSize="10sp"
+                android:letterSpacing="0.05" />
+
+            <TextView
+                android:id="@+id/txtTeamShortName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="TEAM A"
+                android:textColor="#94A3B8"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Bottom: 6-Axis Radar Chart (110dp x 110dp) -->
+        <com.example.vhpmatchpresentation.ui.components.RadarChartView
+            android:id="@+id/radarChartView"
+            android:layout_width="110dp"
+            android:layout_height="110dp"
+            android:layout_gravity="center_horizontal" />
+
+    </LinearLayout>
+</ScrollView>
