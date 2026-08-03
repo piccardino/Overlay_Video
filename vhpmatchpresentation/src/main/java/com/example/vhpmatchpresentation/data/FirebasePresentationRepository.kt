@@ -78,7 +78,20 @@ class FirebasePresentationRepository(private val context: Context) {
         val playersA = mutableListOf<PlayerPresentation>()
         val playersB = mutableListOf<PlayerPresentation>()
 
-        // 1. Check liveMatchProgress nodes
+        // 1. PRIMARY SOURCE FOR VPM AND VHU: settings node
+        val settingsSnap = userSnap.child("settings")
+        if (settingsSnap.exists()) {
+            nameA = extractString(settingsSnap, "myTeam", "teamAName", "teamA", "myTeamName", "team_a_name", "nomeA", "squadraA")
+            nameB = extractString(settingsSnap, "opponentTeam", "teamBName", "teamB", "opponentTeamName", "team_b_name", "nomeB", "squadraB")
+
+            logoA = extractLogo(settingsSnap, "logoA", "logoTeamA", "myTeamLogo", "imageA")
+            logoB = extractLogo(settingsSnap, "logoB", "logoTeamB", "opponentTeamLogo", "imageB")
+
+            colorA = extractString(settingsSnap, "colorA", "primaryColorA", "teamAColor")
+            colorB = extractString(settingsSnap, "colorB", "primaryColorB", "teamBColor")
+        }
+
+        // 2. SECONDARY SOURCE: matchData (liveMatchProgress_index / liveMatchProgress_local / formation / settings)
         val matchDataSnap = userSnap.child("matchData")
         if (matchDataSnap.exists()) {
             val liveSnap = matchDataSnap.child("liveMatchProgress_index")
@@ -90,8 +103,8 @@ class FirebasePresentationRepository(private val context: Context) {
                 ?: matchDataSnap.child("liveMatch")
 
             if (liveSnap.exists()) {
-                nameA = extractString(liveSnap, "teamAName", "myTeam", "teamA", "team_a_name", "squadraA")
-                nameB = extractString(liveSnap, "teamBName", "opponentTeam", "teamB", "team_b_name", "squadraB")
+                if (nameA.isEmpty()) nameA = extractString(liveSnap, "teamAName", "myTeam", "teamA", "team_a_name", "squadraA")
+                if (nameB.isEmpty()) nameB = extractString(liveSnap, "teamBName", "opponentTeam", "teamB", "team_b_name", "squadraB")
 
                 scoreA = liveSnap.child("scoreA").getValue(Int::class.java) ?: 0
                 scoreB = liveSnap.child("scoreB").getValue(Int::class.java) ?: 0
@@ -101,96 +114,49 @@ class FirebasePresentationRepository(private val context: Context) {
                     ?: liveSnap.child("setsB").getValue(Int::class.java) ?: 0
                 serving = liveSnap.child("servingTeam").getValue(String::class.java) ?: ""
 
-                logoA = extractLogo(liveSnap, "logoA", "teamALogo", "myTeamLogo", "logo")
-                logoB = extractLogo(liveSnap, "logoB", "teamBLogo", "opponentTeamLogo", "logo")
+                if (logoA.isEmpty()) logoA = extractLogo(liveSnap, "logoA", "teamALogo", "myTeamLogo")
+                if (logoB.isEmpty()) logoB = extractLogo(liveSnap, "logoB", "teamBLogo", "opponentTeamLogo")
 
-                colorA = extractString(liveSnap, "teamAColor", "colorA")
-                colorB = extractString(liveSnap, "teamBColor", "colorB")
+                if (colorA.isEmpty()) colorA = extractString(liveSnap, "teamAColor", "colorA")
+                if (colorB.isEmpty()) colorB = extractString(liveSnap, "teamBColor", "colorB")
 
                 playersA.addAll(parsePlayerListSnapshot(liveSnap.child("teamAPlayers"), "A"))
                 playersB.addAll(parsePlayerListSnapshot(liveSnap.child("teamBPlayers"), "B"))
             }
 
+            // Check matchData/settings
+            val matchSettingsSnap = matchDataSnap.child("settings")
+            if (matchSettingsSnap.exists()) {
+                if (nameA.isEmpty()) nameA = extractString(matchSettingsSnap, "myTeam", "teamAName", "teamA", "nomeA", "squadraA")
+                if (nameB.isEmpty()) nameB = extractString(matchSettingsSnap, "opponentTeam", "teamBName", "teamB", "nomeB", "squadraB")
+                if (logoA.isEmpty()) logoA = extractLogo(matchSettingsSnap, "logoA", "logoTeamA", "myTeamLogo")
+                if (logoB.isEmpty()) logoB = extractLogo(matchSettingsSnap, "logoB", "logoTeamB", "opponentTeamLogo")
+            }
+
             // Check matchData/formation
             val formationSnap = matchDataSnap.child("formation")
             if (formationSnap.exists()) {
-                val fNameA = extractString(formationSnap, "teamAName", "myTeam", "teamA")
-                val fNameB = extractString(formationSnap, "teamBName", "opponentTeam", "teamB")
-                if (fNameA.isNotEmpty()) nameA = fNameA
-                if (fNameB.isNotEmpty()) nameB = fNameB
+                if (nameA.isEmpty()) nameA = extractString(formationSnap, "teamAName", "myTeam", "teamA")
+                if (nameB.isEmpty()) nameB = extractString(formationSnap, "teamBName", "opponentTeam", "teamB")
 
                 if (playersA.isEmpty()) playersA.addAll(parsePlayerListSnapshot(formationSnap.child("playersA"), "A"))
                 if (playersB.isEmpty()) playersB.addAll(parsePlayerListSnapshot(formationSnap.child("playersB"), "B"))
             }
 
-            // Check matchData/rosters
+            // Check matchData/rosters for PLAYERS ONLY (do NOT touch team names)
             val rostersSnap = matchDataSnap.child("rosters")
             if (rostersSnap.exists()) {
                 val teamKeys = rostersSnap.children.mapNotNull { it.key }
                 if (teamKeys.isNotEmpty()) {
-                    val rosterA = rostersSnap.child(teamKeys[0])
-                    val rNameA = extractString(rosterA, "teamName", "name", "squadra")
-                    if (rNameA.isNotEmpty()) nameA = rNameA
-                    if (playersA.isEmpty()) playersA.addAll(parsePlayerListSnapshot(rosterA, "A"))
+                    if (playersA.isEmpty()) playersA.addAll(parsePlayerListSnapshot(rostersSnap.child(teamKeys[0]), "A"))
                 }
                 if (teamKeys.size > 1) {
-                    val rosterB = rostersSnap.child(teamKeys[1])
-                    val rNameB = extractString(rosterB, "teamName", "name", "squadra")
-                    if (rNameB.isNotEmpty()) nameB = rNameB
-                    if (playersB.isEmpty()) playersB.addAll(parsePlayerListSnapshot(rosterB, "B"))
-                }
-            }
-
-            // Check matchData/settings
-            val matchSettingsSnap = matchDataSnap.child("settings")
-            if (matchSettingsSnap.exists()) {
-                val msNameA = extractString(matchSettingsSnap, "myTeam", "teamAName", "teamA", "nomeA", "squadraA")
-                val msNameB = extractString(matchSettingsSnap, "opponentTeam", "teamBName", "teamB", "nomeB", "squadraB")
-                if (msNameA.isNotEmpty()) nameA = msNameA
-                if (msNameB.isNotEmpty()) nameB = msNameB
-                if (logoA.isEmpty()) logoA = extractLogo(matchSettingsSnap, "logoA", "logoTeamA", "myTeamLogo")
-                if (logoB.isEmpty()) logoB = extractLogo(matchSettingsSnap, "logoB", "logoTeamB", "opponentTeamLogo")
-            }
-        }
-
-        // 2. Check Tournament Data (if current match is in a tournament round)
-        val tourneySnap = userSnap.child("tournamentData").child("rounds")
-        if (tourneySnap.exists()) {
-            for (roundChild in tourneySnap.children) {
-                for (matchChild in roundChild.children) {
-                    val t1 = matchChild.child("team1")
-                    val t2 = matchChild.child("team2")
-                    val t1Name = extractString(t1, "name", "teamName")
-                    val t2Name = extractString(t2, "name", "teamName")
-                    if (t1Name.isNotEmpty() && t2Name.isNotEmpty()) {
-                        nameA = t1Name
-                        nameB = t2Name
-                        val t1Color = extractString(t1, "color")
-                        val t2Color = extractString(t2, "color")
-                        if (t1Color.isNotEmpty()) colorA = t1Color
-                        if (t2Color.isNotEmpty()) colorB = t2Color
-                        break
-                    }
+                    if (playersB.isEmpty()) playersB.addAll(parsePlayerListSnapshot(rostersSnap.child(teamKeys[1]), "B"))
                 }
             }
         }
 
-        // 3. Root Settings node
-        val settingsSnap = userSnap.child("settings")
-        if (settingsSnap.exists()) {
-            val sNameA = extractString(settingsSnap, "myTeam", "teamAName", "teamA", "myTeamName", "team_a_name", "nomeA", "squadraA")
-            val sNameB = extractString(settingsSnap, "opponentTeam", "teamBName", "teamB", "opponentTeamName", "team_b_name", "nomeB", "squadraB")
-            if (nameA.isEmpty() && sNameA.isNotEmpty()) nameA = sNameA
-            if (nameB.isEmpty() && sNameB.isNotEmpty()) nameB = sNameB
-
-            if (logoA.isEmpty()) logoA = extractLogo(settingsSnap, "logoA", "logoTeamA", "myTeamLogo", "imageA")
-            if (logoB.isEmpty()) logoB = extractLogo(settingsSnap, "logoB", "logoTeamB", "opponentTeamLogo", "imageB")
-
-            if (colorA.isEmpty()) colorA = extractString(settingsSnap, "colorA", "primaryColorA", "teamAColor")
-            if (colorB.isEmpty()) colorB = extractString(settingsSnap, "colorB", "primaryColorB", "teamBColor")
-        }
-
-        // Defaults if missing
+        // Strict Default Fallbacks for Team Names
         if (nameA.isEmpty()) nameA = "VPM"
         if (nameB.isEmpty()) nameB = "VHU"
         if (colorA.isEmpty()) colorA = "#0284C7"
