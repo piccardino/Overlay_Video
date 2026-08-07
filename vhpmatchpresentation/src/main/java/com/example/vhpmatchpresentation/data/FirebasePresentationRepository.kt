@@ -24,6 +24,9 @@ class FirebasePresentationRepository(private val context: Context) {
     val connectionState: StateFlow<Boolean> = _connectionState.asStateFlow()
 
     private var userListener: ValueEventListener? = null
+    private var lastScoreA: Int = -1
+    private var lastScoreB: Int = -1
+    private var currentServingTeam: String = ""
 
     init {
         val connectedRef = database.getReference(".info/connected")
@@ -37,6 +40,25 @@ class FirebasePresentationRepository(private val context: Context) {
                 Log.e("FirebaseRepo", "Connection listener cancelled: ${error.message}")
             }
         })
+    }
+
+    fun refreshPhotos() {
+        val current = _presentationData.value
+        val updatedTeamA = current.teamA.copy(
+            players = current.teamA.players.map { player ->
+                val localPhoto = photoManager.getPhotoUriForPlayer(player.name)
+                    ?: photoManager.getPhotoUriForPlayer(player.displayName)
+                player.copy(photoUri = if (!localPhoto.isNullOrEmpty()) localPhoto else player.photoUri)
+            }
+        )
+        val updatedTeamB = current.teamB.copy(
+            players = current.teamB.players.map { player ->
+                val localPhoto = photoManager.getPhotoUriForPlayer(player.name)
+                    ?: photoManager.getPhotoUriForPlayer(player.displayName)
+                player.copy(photoUri = if (!localPhoto.isNullOrEmpty()) localPhoto else player.photoUri)
+            }
+        )
+        _presentationData.value = current.copy(teamA = updatedTeamA, teamB = updatedTeamB)
     }
 
     fun startObserving(uid: String, matchKey: String = "", source: String = "index") {
@@ -77,6 +99,7 @@ class FirebasePresentationRepository(private val context: Context) {
 
         val playersA = mutableListOf<PlayerPresentation>()
         val playersB = mutableListOf<PlayerPresentation>()
+        var hasActiveFormation = false
 
         // 1. PRIMARY SOURCE FOR VPM AND VHU: settings node
         val settingsSnap = userSnap.child("settings")
@@ -91,7 +114,7 @@ class FirebasePresentationRepository(private val context: Context) {
             colorB = extractString(settingsSnap, "colorB", "primaryColorB", "teamBColor")
         }
 
-        // 2. SECONDARY SOURCE: matchData (liveMatchProgress_index / liveMatchProgress_local / formation / settings)
+        // 2. SECONDARY SOURCE: matchData (liveMatchProgress_index / liveMatchProgress_local / formation / settings / rosters)
         val matchDataSnap = userSnap.child("matchData")
         if (matchDataSnap.exists()) {
             val liveSnap = matchDataSnap.child("liveMatchProgress_index")
@@ -112,7 +135,6 @@ class FirebasePresentationRepository(private val context: Context) {
                     ?: liveSnap.child("setsA").getValue(Int::class.java) ?: 0
                 setsB = liveSnap.child("setsWonB").getValue(Int::class.java)
                     ?: liveSnap.child("setsB").getValue(Int::class.java) ?: 0
-                serving = liveSnap.child("servingTeam").getValue(String::class.java) ?: ""
 
                 if (logoA.isEmpty()) logoA = extractLogo(liveSnap, "logoA", "teamALogo", "myTeamLogo")
                 if (logoB.isEmpty()) logoB = extractLogo(liveSnap, "logoB", "teamBLogo", "opponentTeamLogo")
@@ -120,41 +142,119 @@ class FirebasePresentationRepository(private val context: Context) {
                 if (colorA.isEmpty()) colorA = extractString(liveSnap, "teamAColor", "colorA")
                 if (colorB.isEmpty()) colorB = extractString(liveSnap, "teamBColor", "colorB")
 
-                playersA.addAll(parsePlayerListSnapshot(liveSnap.child("teamAPlayers"), "A"))
-                playersB.addAll(parsePlayerListSnapshot(liveSnap.child("teamBPlayers"), "B"))
+                val livePlayersA = parsePlayerListSnapshot(liveSnap.child("teamAPlayers"), "A")
+                val livePlayersB = parsePlayerListSnapshot(liveSnap.child("teamBPlayers"), "B")
+                if (livePlayersA.isNotEmpty()) playersA.addAll(livePlayersA)
+                if (livePlayersB.isNotEmpty()) playersB.addAll(livePlayersB)
             }
 
-            // Check matchData/settings
-            val matchSettingsSnap = matchDataSnap.child("settings")
-            if (matchSettingsSnap.exists()) {
-                if (nameA.isEmpty()) nameA = extractString(matchSettingsSnap, "myTeam", "teamAName", "teamA", "nomeA", "squadraA")
-                if (nameB.isEmpty()) nameB = extractString(matchSettingsSnap, "opponentTeam", "teamBName", "teamB", "nomeB", "squadraB")
-                if (logoA.isEmpty()) logoA = extractLogo(matchSettingsSnap, "logoA", "logoTeamA", "myTeamLogo")
-                if (logoB.isEmpty()) logoB = extractLogo(matchSettingsSnap, "logoB", "logoTeamB", "opponentTeamLogo")
-            }
-
-            // Check matchData/formation
+            // Check matchData/formation (Web App Active Lineup Priority)
             val formationSnap = matchDataSnap.child("formation")
             if (formationSnap.exists()) {
-                if (nameA.isEmpty()) nameA = extractString(formationSnap, "teamAName", "myTeam", "teamA")
-                if (nameB.isEmpty()) nameB = extractString(formationSnap, "teamBName", "opponentTeam", "teamB")
+                if (nameA.isEmpty()) nameA = extractString(formationSnap, "teamAName", "myTeam", "teamA", "benchA")
+                if (nameB.isEmpty()) nameB = extractString(formationSnap, "teamBName", "opponentTeam", "teamB", "benchB")
 
-                if (playersA.isEmpty()) playersA.addAll(parsePlayerListSnapshot(formationSnap.child("playersA"), "A"))
-                if (playersB.isEmpty()) playersB.addAll(parsePlayerListSnapshot(formationSnap.child("playersB"), "B"))
+                // index.html saves the current lineup as formation/tokens, not playersA/playersB.
+                // Read those tokens first so the phone mirrors the exact formation shown on the web app.
+                val formationTokens = formationSnap.child("tokens")
+                val formPlayersA: List<PlayerPresentation>
+                val formPlayersB: List<PlayerPresentation>
+                if (formationTokens.exists()) {
+                    hasActiveFormation = true
+                    formPlayersA = parseFormationTokens(formationTokens, "A", userSnap)
+                    formPlayersB = parseFormationTokens(formationTokens, "B", userSnap)
+                } else {
+                    formPlayersA = parsePlayerListSnapshot(formationSnap.child("playersA"), "A")
+                        .ifEmpty { parsePlayerListSnapshot(formationSnap.child("lineupA"), "A") }
+                        .ifEmpty { parsePlayerListSnapshot(formationSnap.child("teamAPlayers"), "A") }
+
+                    formPlayersB = parsePlayerListSnapshot(formationSnap.child("playersB"), "B")
+                        .ifEmpty { parsePlayerListSnapshot(formationSnap.child("lineupB"), "B") }
+                        .ifEmpty { parsePlayerListSnapshot(formationSnap.child("teamBPlayers"), "B") }
+                }
+
+                if (hasActiveFormation || formPlayersA.isNotEmpty()) {
+                    playersA.clear()
+                    playersA.addAll(formPlayersA)
+                }
+                if (hasActiveFormation || formPlayersB.isNotEmpty()) {
+                    playersB.clear()
+                    playersB.addAll(formPlayersB)
+                }
             }
 
-            // Check matchData/rosters for PLAYERS ONLY (do NOT touch team names)
+            // Check matchData/rosters (Web App Roster Priority if formation empty)
             val rostersSnap = matchDataSnap.child("rosters")
-            if (rostersSnap.exists()) {
-                val teamKeys = rostersSnap.children.mapNotNull { it.key }
-                if (teamKeys.isNotEmpty()) {
-                    if (playersA.isEmpty()) playersA.addAll(parsePlayerListSnapshot(rostersSnap.child(teamKeys[0]), "A"))
+            if (rostersSnap.exists() && !hasActiveFormation) {
+                // Look for team matching nameA or nameB or first two keys
+                for (teamChild in rostersSnap.children) {
+                    val key = teamChild.key ?: continue
+                    val tName = extractString(teamChild, "teamName", "name", "squadra")
+                    if (key.equals(nameA, ignoreCase = true) || tName.equals(nameA, ignoreCase = true) || key.contains("A", ignoreCase = true)) {
+                        val rosterPlayersA = parsePlayerListSnapshot(teamChild.child("players"), "A")
+                            .ifEmpty { parsePlayerListSnapshot(teamChild, "A") }
+                        if (rosterPlayersA.isNotEmpty() && playersA.isEmpty()) {
+                            playersA.addAll(rosterPlayersA)
+                        }
+                    } else if (key.equals(nameB, ignoreCase = true) || tName.equals(nameB, ignoreCase = true) || key.contains("B", ignoreCase = true)) {
+                        val rosterPlayersB = parsePlayerListSnapshot(teamChild.child("players"), "B")
+                            .ifEmpty { parsePlayerListSnapshot(teamChild, "B") }
+                        if (rosterPlayersB.isNotEmpty() && playersB.isEmpty()) {
+                            playersB.addAll(rosterPlayersB)
+                        }
+                    }
                 }
-                if (teamKeys.size > 1) {
-                    if (playersB.isEmpty()) playersB.addAll(parsePlayerListSnapshot(rostersSnap.child(teamKeys[1]), "B"))
+
+                if (playersA.isEmpty() || playersB.isEmpty()) {
+                    val teamKeys = rostersSnap.children.mapNotNull { it.key }
+                    if (teamKeys.isNotEmpty() && playersA.isEmpty()) {
+                        playersA.addAll(parsePlayerListSnapshot(rostersSnap.child(teamKeys[0]).child("players"), "A").ifEmpty { parsePlayerListSnapshot(rostersSnap.child(teamKeys[0]), "A") })
+                    }
+                    if (teamKeys.size > 1 && playersB.isEmpty()) {
+                        playersB.addAll(parsePlayerListSnapshot(rostersSnap.child(teamKeys[1]).child("players"), "B").ifEmpty { parsePlayerListSnapshot(rostersSnap.child(teamKeys[1]), "B") })
+                    }
                 }
             }
         }
+
+        // 3. Serve logic (Volleyball side-out rules + Firebase override):
+        // At 0 - 0: No ball (servingTeam = "").
+        // First team to score point gets serve. Subsequent points follow winner of point.
+        val rawServing = extractString(
+            matchDataSnap.child("liveMatchProgress_index"),
+            "servingTeam", "serving", "battuta", "serve", "currentServe", "servizio", "server", "battutaTeam"
+        ).ifEmpty {
+            extractString(
+                matchDataSnap.child("formation"),
+                "servingTeam", "serving", "battuta", "serve", "currentServe"
+            )
+        }
+
+        val normalizedRawServing = when {
+            rawServing.equals("A", ignoreCase = true) || rawServing.equals("teamA", ignoreCase = true) || (nameA.isNotEmpty() && rawServing.equals(nameA, ignoreCase = true)) -> "A"
+            rawServing.equals("B", ignoreCase = true) || rawServing.equals("teamB", ignoreCase = true) || (nameB.isNotEmpty() && rawServing.equals(nameB, ignoreCase = true)) -> "B"
+            else -> ""
+        }
+
+        if (scoreA == 0 && scoreB == 0) {
+            currentServingTeam = ""
+        } else if (normalizedRawServing.isNotEmpty()) {
+            currentServingTeam = normalizedRawServing
+        } else {
+            if (lastScoreA >= 0 && lastScoreB >= 0) {
+                if (scoreA > lastScoreA && scoreB == lastScoreB) {
+                    currentServingTeam = "A"
+                } else if (scoreB > lastScoreB && scoreA == lastScoreA) {
+                    currentServingTeam = "B"
+                }
+            } else {
+                if (scoreA > scoreB) currentServingTeam = "A"
+                else if (scoreB > scoreA) currentServingTeam = "B"
+            }
+        }
+        lastScoreA = scoreA
+        lastScoreB = scoreB
+        serving = currentServingTeam
 
         // Strict Default Fallbacks for Team Names
         if (nameA.isEmpty()) nameA = "VPM"
@@ -162,7 +262,7 @@ class FirebasePresentationRepository(private val context: Context) {
         if (colorA.isEmpty()) colorA = "#0284C7"
         if (colorB.isEmpty()) colorB = "#E11D48"
 
-        Log.i("FirebaseRepo", "Parsed Match State: Team A='$nameA' (${playersA.size} players), Team B='$nameB' (${playersB.size} players), Score: $scoreA - $scoreB")
+        Log.i("FirebaseRepo", "Parsed Match State: Team A='$nameA' (${playersA.size} players), Team B='$nameB' (${playersB.size} players), Score: $scoreA - $scoreB, Serve: '$serving'")
 
         val current = _presentationData.value
         _presentationData.value = current.copy(
@@ -170,13 +270,21 @@ class FirebasePresentationRepository(private val context: Context) {
                 name = nameA,
                 logoUrl = logoA.ifEmpty { current.teamA.logoUrl },
                 primaryColorHex = colorA,
-                players = if (playersA.isNotEmpty()) playersA else current.teamA.players
+                players = when {
+                    hasActiveFormation -> playersA
+                    playersA.isNotEmpty() -> playersA
+                    else -> current.teamA.players
+                }
             ),
             teamB = current.teamB.copy(
                 name = nameB,
                 logoUrl = logoB.ifEmpty { current.teamB.logoUrl },
                 primaryColorHex = colorB,
-                players = if (playersB.isNotEmpty()) playersB else current.teamB.players
+                players = when {
+                    hasActiveFormation -> playersB
+                    playersB.isNotEmpty() -> playersB
+                    else -> current.teamB.players
+                }
             ),
             scoreA = scoreA,
             scoreB = scoreB,
@@ -217,16 +325,16 @@ class FirebasePresentationRepository(private val context: Context) {
             val name = child.child("name").getValue(String::class.java)
                 ?: child.child("nome").getValue(String::class.java)
                 ?: child.child("displayName").getValue(String::class.java)
+                ?: child.child("playerName").getValue(String::class.java)
                 ?: "Player $key"
 
             val number = child.child("num").getValue(Any::class.java)?.toString()
                 ?: child.child("number").getValue(Any::class.java)?.toString()
                 ?: child.child("numero").getValue(Any::class.java)?.toString()
+                ?: child.child("jerseyNumber").getValue(Any::class.java)?.toString()
                 ?: key
 
-            val role = child.child("role").getValue(String::class.java)
-                ?: child.child("ruolo").getValue(String::class.java)
-                ?: "Outside Hitter"
+            val role = extractPlayerRole(child)
 
             val fbPhotoUri = child.child("photoUrl").getValue(String::class.java)
                 ?: child.child("photo").getValue(String::class.java)
@@ -239,9 +347,7 @@ class FirebasePresentationRepository(private val context: Context) {
                 ?: child.child("path").getValue(String::class.java)
                 ?: ""
 
-            val localPhotoUri = photoManager.getPhotoUriForPlayer(id)
-                ?: photoManager.getPhotoUriForPlayer(name)
-                ?: photoManager.getPhotoUriForPlayer(number)
+            val localPhotoUri = photoManager.getPhotoUriForPlayer(name)
 
             val finalPhotoUri = if (fbPhotoUri.isNotEmpty()) fbPhotoUri else (localPhotoUri ?: "")
 
@@ -273,6 +379,106 @@ class FirebasePresentationRepository(private val context: Context) {
             )
         }
         return list
+    }
+
+    /**
+     * The formation editor stores every player as a lightweight token:
+     * { name, team: "team-a" | "team-b", role, gender, ... }.
+     * Use the token name as the primary value; roster data only enriches number,
+     * role, photo and statistics when it is available.
+     */
+    private fun parseFormationTokens(
+        tokensSnap: DataSnapshot,
+        teamTag: String,
+        rosterSnap: DataSnapshot
+    ): List<PlayerPresentation> {
+        val players = mutableListOf<PlayerPresentation>()
+        val expectedTeam = if (teamTag == "A") "team-a" else "team-b"
+
+        for (token in tokensSnap.children) {
+            val tokenTeam = token.child("team").getValue(String::class.java)?.trim()?.lowercase()
+            if (tokenTeam != expectedTeam) continue
+
+            val tokenName = token.child("name").getValue(String::class.java)?.trim().orEmpty()
+            val rosterPlayer = findRosterPlayerByName(rosterSnap, tokenName)
+            val fallbackId = token.key ?: (players.size + 1).toString()
+            val id = "${teamTag}_$fallbackId"
+
+            val name = tokenName.ifEmpty {
+                rosterPlayer?.child("name")?.getValue(String::class.java)?.trim().orEmpty()
+            }.ifEmpty { "Player $fallbackId" }
+            val number = rosterPlayer?.child("num")?.getValue(Any::class.java)?.toString()
+                ?: rosterPlayer?.child("number")?.getValue(Any::class.java)?.toString()
+                ?: rosterPlayer?.child("numero")?.getValue(Any::class.java)?.toString()
+                ?: (players.size + 1).toString()
+            // The formation token stores only the tactical display role
+            // (usually Universal/Libero). The roster is the authoritative role.
+            val role = rosterPlayer?.let { extractPlayerRole(it) }
+                ?: token.child("role").getValue(String::class.java)?.takeIf { it.isNotBlank() }
+                ?: "Universal"
+
+            val firebasePhotoUri = rosterPlayer?.let { extractPhotoUri(it) }.orEmpty()
+            val localPhotoUri = photoManager.getPhotoUriForPlayer(name)
+            val statsSnap = rosterPlayer?.child("stats")?.takeIf { it.exists() }
+                ?: rosterPlayer?.child("statistiche")
+
+            players.add(
+                PlayerPresentation(
+                    id = id,
+                    name = name,
+                    displayName = name,
+                    number = number,
+                    role = role,
+                    photoUri = firebasePhotoUri.ifEmpty { localPhotoUri.orEmpty() },
+                    stats = PlayerStats(
+                        attack = parseStat(statsSnap, "spike", "attacco", 75),
+                        block = parseStat(statsSnap, "block", "muro", 70),
+                        serve = parseStat(statsSnap, "serve", "battuta", 80),
+                        receive = parseStat(statsSnap, "receive", "ricezione", 68),
+                        defense = parseStat(statsSnap, "defense", "difesa", 72),
+                        set = parseStat(statsSnap, "set", "alzata", 65)
+                    )
+                )
+            )
+        }
+        return players
+    }
+
+    private fun findRosterPlayerByName(rosterSnap: DataSnapshot, name: String): DataSnapshot? {
+        if (name.isBlank() || !rosterSnap.exists()) return null
+        fun search(snap: DataSnapshot): DataSnapshot? {
+            for (child in snap.children) {
+                for (key in listOf("name", "displayName", "playerName", "nome")) {
+                    val pName = child.child(key).getValue(String::class.java)?.trim()
+                    if (pName != null && pName.equals(name, ignoreCase = true)) {
+                        return child
+                    }
+                }
+                val subResult = search(child)
+                if (subResult != null) return subResult
+            }
+            return null
+        }
+        return search(rosterSnap)
+    }
+
+    private fun extractPlayerRole(playerSnap: DataSnapshot): String {
+        return listOf("role", "ruolo", "position", "posizione", "playerRole", "roleName")
+            .asSequence()
+            .mapNotNull { key -> playerSnap.child(key).getValue(String::class.java)?.trim() }
+            .firstOrNull { it.isNotBlank() }
+            ?: "Outside Hitter"
+    }
+
+    private fun extractPhotoUri(playerSnap: DataSnapshot): String {
+        return playerSnap.child("photoUrl").getValue(String::class.java)
+            ?: playerSnap.child("photo").getValue(String::class.java)
+            ?: playerSnap.child("foto").getValue(String::class.java)
+            ?: playerSnap.child("image").getValue(String::class.java)
+            ?: playerSnap.child("picture").getValue(String::class.java)
+            ?: playerSnap.child("url").getValue(String::class.java)
+            ?: playerSnap.child("uri").getValue(String::class.java)
+            ?: ""
     }
 
     private fun parseStat(snap: DataSnapshot?, key1: String, key2: String, defaultVal: Int): Int {

@@ -165,7 +165,7 @@
                         android:gravity="center"
                         android:text="0" />
 
-                    <!-- VHP LOGO BADGE (Using Logo2.png) -->
+                    <!-- VHP LOGO BADGE (Using logosito.png) -->
                     <FrameLayout
                         android:layout_width="36dp"
                         android:layout_height="match_parent"
@@ -176,7 +176,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
                             android:scaleType="fitCenter"
-                            android:src="@drawable/logo2"
+                            android:src="@drawable/logosito"
                             android:contentDescription="VHP Logo" />
                     </FrameLayout>
 

@@ -22,19 +22,55 @@ class PhotoMatchingManager(private val context: Context) {
         }
     }
 
-    fun savePhotoMapping(key: String, photoUri: String) {
-        if (key.isBlank() || photoUri.isBlank()) return
-        prefs.edit().putString(key, photoUri).apply()
+    init {
+        cleanupLegacyKeys()
     }
 
-    fun getPhotoUriForPlayer(playerId: String): String? {
-        val direct = prefs.getString(playerId, null)
-        if (!direct.isNullOrEmpty()) return direct
+    fun cleanupLegacyKeys() {
+        try {
+            val allKeys = prefs.all.keys
+            val legacyKeys = allKeys.filter { key ->
+                key.matches("^[abAB]_[0-9]+$".toRegex()) || key.matches("^[0-9]+$".toRegex()) || key.matches("^num[0-9]+$".toRegex())
+            }
+            if (legacyKeys.isNotEmpty()) {
+                val editor = prefs.edit()
+                for (key in legacyKeys) {
+                    editor.remove(key)
+                }
+                editor.apply()
+                Log.i("PhotoMatching", "Cleaned up ${legacyKeys.size} legacy positional/numeric photo keys")
+            }
+        } catch (e: Exception) {
+            Log.e("PhotoMatching", "Error cleaning up legacy keys", e)
+        }
+    }
+
+    fun savePhotoForPlayer(name: String, photoUri: String) {
+        val normKey = normalizeName(name)
+        if (normKey.isBlank() || photoUri.isBlank()) return
+        prefs.edit().putString(normKey, photoUri).apply()
+    }
+
+    fun getPhotoUriForPlayer(name: String): String? {
+        val normKey = normalizeName(name)
+        if (normKey.isBlank()) return null
+        val uriStr = prefs.getString(normKey, null)
+        if (!uriStr.isNullOrEmpty()) return uriStr
         return null
     }
 
-    fun removePhotoMapping(playerId: String) {
-        prefs.edit().remove(playerId).apply()
+    fun removePhotoForPlayer(name: String) {
+        val normKey = normalizeName(name)
+        if (normKey.isBlank()) return
+        prefs.edit().remove(normKey).apply()
+    }
+
+    fun savePhotoMapping(key: String, photoUri: String) {
+        savePhotoForPlayer(key, photoUri)
+    }
+
+    fun removePhotoMapping(key: String) {
+        removePhotoForPlayer(key)
     }
 
     fun getAllMappings(): Map<String, String> {
@@ -61,7 +97,7 @@ class PhotoMatchingManager(private val context: Context) {
             }
         }
 
-        // 2. Pass 1: Match by exact or partial player name / display name / jersey number in file name
+        // 2. Match by exact or partial player name / display name in file name
         for (player in players) {
             val normalizedPlayerName = normalizeName(player.name)
             val normalizedDisplayName = normalizeName(player.displayName)
@@ -83,23 +119,11 @@ class PhotoMatchingManager(private val context: Context) {
 
             if (matchedUri != null) {
                 matches[player.id] = matchedUri
-                savePhotoMapping(player.id, matchedUri.toString())
-                savePhotoMapping(player.name, matchedUri.toString())
-                savePhotoMapping(player.number, matchedUri.toString())
+                savePhotoForPlayer(player.name, matchedUri.toString())
+                if (player.displayName.isNotBlank()) {
+                    savePhotoForPlayer(player.displayName, matchedUri.toString())
+                }
                 unusedUris.remove(matchedUri)
-            }
-        }
-
-        // 3. Pass 2: Sequential Fallback for remaining unmatched players
-        val unmatchedPlayers = players.filter { !matches.containsKey(it.id) }
-        for (i in unmatchedPlayers.indices) {
-            if (i < unusedUris.size) {
-                val player = unmatchedPlayers[i]
-                val uri = unusedUris[i]
-                matches[player.id] = uri
-                savePhotoMapping(player.id, uri.toString())
-                savePhotoMapping(player.name, uri.toString())
-                savePhotoMapping(player.number, uri.toString())
             }
         }
 

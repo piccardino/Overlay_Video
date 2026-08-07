@@ -7,9 +7,13 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.PixelFormat
+import android.media.ExifInterface
+import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -382,6 +386,59 @@ class PresentationOverlayService : Service() {
                 }
             } catch (e: Exception) {
                 Log.e("PresentationOverlay", "Error decoding base64 player photo", e)
+            }
+        }
+
+        // Photos selected from the phone are content:// URIs. Decode them
+        // synchronously so the direct recorder never captures the card before
+        // a slower PNG decoder has finished loading the image.
+        if (photoUri.startsWith("content://") || photoUri.startsWith("file://")) {
+            try {
+                // JPEG photos store their real orientation in EXIF metadata, but
+                // BitmapFactory ignores it, so they show up rotated 90 degrees.
+                // Read the raw bytes, apply the EXIF rotation, then decode.
+                val bytes = contentResolver.openInputStream(Uri.parse(photoUri))?.use { it.readBytes() }
+                if (bytes != null) {
+                    val exif = try {
+                        ExifInterface(java.io.ByteArrayInputStream(bytes))
+                    } catch (e: Exception) {
+                        null
+                    }
+                    val orientation = exif?.getAttributeInt(
+                        ExifInterface.TAG_ORIENTATION,
+                        ExifInterface.ORIENTATION_NORMAL
+                    ) ?: ExifInterface.ORIENTATION_NORMAL
+
+                    var localBitmap: Bitmap? = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                    if (localBitmap != null && orientation != ExifInterface.ORIENTATION_NORMAL) {
+                        val matrix = Matrix()
+                        when (orientation) {
+                            ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
+                            ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
+                            ExifInterface.ORIENTATION_ROTATE_270 -> matrix.postRotate(270f)
+                            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> matrix.postScale(-1f, 1f)
+                            ExifInterface.ORIENTATION_FLIP_VERTICAL -> matrix.postScale(1f, -1f)
+                            ExifInterface.ORIENTATION_TRANSPOSE -> {
+                                matrix.postRotate(90f)
+                                matrix.postScale(-1f, 1f)
+                            }
+                            ExifInterface.ORIENTATION_TRANSVERSE -> {
+                                matrix.postRotate(270f)
+                                matrix.postScale(-1f, 1f)
+                            }
+                        }
+                        val rotated = Bitmap.createBitmap(localBitmap, 0, 0, localBitmap.width, localBitmap.height, matrix, true)
+                        if (rotated != localBitmap) localBitmap.recycle()
+                        localBitmap = rotated
+                    }
+                    if (localBitmap != null) {
+                        imageView.setImageBitmap(localBitmap)
+                        imageView.postInvalidate()
+                        return
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("PresentationOverlay", "Error decoding local player photo", e)
             }
         }
 

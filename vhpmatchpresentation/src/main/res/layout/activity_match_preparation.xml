@@ -175,19 +175,10 @@
             android:layout_width="match_parent"
             android:layout_height="54dp"
             android:layout_marginTop="24dp"
-            android:text="IMPORT PLAYER PHOTOS"
+            android:text="VERIFY PHOTO MATCHES"
             android:textColor="#00E5FF"
             app:strokeColor="#00E5FF" />
 
-        <Button
-            android:id="@+id/btnVerifyMappings"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="match_parent"
-            android:layout_height="54dp"
-            android:layout_marginTop="12dp"
-            android:text="VERIFY PHOTO MATCHES"
-            android:textColor="#94A3B8"
-            app:strokeColor="#475569" />
 
         <Button
             android:id="@+id/btnStartPresentationOverlay"

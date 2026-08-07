@@ -44,6 +44,7 @@ class MatchPreparationActivity : AppCompatActivity() {
 
     private var currentMatchData = MatchPresentationData()
     private var selectedPlayerForSinglePhoto: PlayerPresentation? = null
+    private var activeMappingAdapter: PhotoMappingAdapter? = null
 
     private val requestOverlayPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -79,7 +80,7 @@ class MatchPreparationActivity : AppCompatActivity() {
             val allPlayers = currentMatchData.teamA.players + currentMatchData.teamB.players
             val matches = photoManager.autoMatchPhotos(uris, allPlayers)
             Toast.makeText(this, "${matches.size} photos automatically matched!", Toast.LENGTH_LONG).show()
-            observeRepositoryData()
+            repo.refreshPhotos()
         }
     }
 
@@ -96,9 +97,12 @@ class MatchPreparationActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 e.printStackTrace()
             }
-            photoManager.savePhotoMapping(player.id, uri.toString())
+            photoManager.savePhotoForPlayer(player.name, uri.toString())
+            if (player.displayName.isNotBlank()) {
+                photoManager.savePhotoForPlayer(player.displayName, uri.toString())
+            }
+            repo.refreshPhotos()
             Toast.makeText(this, "Photo updated for ${player.name}", Toast.LENGTH_SHORT).show()
-            observeRepositoryData()
         }
     }
 
@@ -145,10 +149,6 @@ class MatchPreparationActivity : AppCompatActivity() {
         }
 
         binding.btnImportPhotos.setOnClickListener {
-            pickMultiplePhotosLauncher.launch(arrayOf("image/*"))
-        }
-
-        binding.btnVerifyMappings.setOnClickListener {
             showVerifyMappingsDialog()
         }
 
@@ -209,6 +209,9 @@ class MatchPreparationActivity : AppCompatActivity() {
         val countB = data.teamB.players.size
         val photosB = data.teamB.players.count { !it.photoUri.isNullOrEmpty() }
         binding.txtPrepStatusB.text = "Players: $countB | Photos mapped: $photosB/$countB"
+
+        val allPlayers = data.teamA.players + data.teamB.players
+        activeMappingAdapter?.updatePlayers(allPlayers)
     }
 
     private fun showVerifyMappingsDialog() {
@@ -218,18 +221,36 @@ class MatchPreparationActivity : AppCompatActivity() {
             return
         }
 
-        val recyclerView = RecyclerView(this).apply {
-            layoutManager = LinearLayoutManager(this@MatchPreparationActivity)
-            adapter = PhotoMappingAdapter(allPlayers) { player ->
+        activeMappingAdapter = PhotoMappingAdapter(
+            players = allPlayers,
+            onSelectPhotoClicked = { player ->
                 selectedPlayerForSinglePhoto = player
                 pickSinglePhotoLauncher.launch(arrayOf("image/*"))
+            },
+            onRemovePhotoClicked = { player ->
+                photoManager.removePhotoForPlayer(player.name)
+                if (player.displayName.isNotBlank()) {
+                    photoManager.removePhotoForPlayer(player.displayName)
+                }
+                repo.refreshPhotos()
+                Toast.makeText(this@MatchPreparationActivity, "Photo removed for ${player.name}", Toast.LENGTH_SHORT).show()
             }
+        )
+
+        val recyclerView = RecyclerView(this).apply {
+            layoutManager = LinearLayoutManager(this@MatchPreparationActivity)
+            adapter = activeMappingAdapter
         }
 
         AlertDialog.Builder(this)
             .setTitle("Verify Player Photos")
             .setView(recyclerView)
-            .setPositiveButton("Close", null)
+            .setPositiveButton("Close") { dialog, _ ->
+                activeMappingAdapter = null
+            }
+            .setOnDismissListener {
+                activeMappingAdapter = null
+            }
             .show()
     }
 

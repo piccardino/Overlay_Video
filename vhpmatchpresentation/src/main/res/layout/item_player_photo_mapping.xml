@@ -48,4 +48,13 @@
         android:text="Associa Foto"
         android:textColor="#00E5FF" />
 
+    <Button
+        android:id="@+id/btnItemRemovePhoto"
+        style="@style/Widget.MaterialComponents.Button.TextButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Rimuovi"
+        android:textColor="#F87171"
+        android:visibility="gone" />
+
 </LinearLayout>

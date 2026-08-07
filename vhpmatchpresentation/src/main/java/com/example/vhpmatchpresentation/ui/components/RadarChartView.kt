@@ -20,7 +20,7 @@ class RadarChartView @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : View(context, attrs, defStyleAttr) {
 
-    private val labels = arrayOf("ATT", "BLK", "SRV", "RCV", "DEF")
+    private val labels = arrayOf("ATT", "BLK", "SRV", "SET", "DEF")
     private var values = floatArrayOf(75f, 70f, 80f, 68f, 72f)
     private var teamColor: Int = Color.parseColor("#0284C7")
 
@@ -61,7 +61,7 @@ class RadarChartView @JvmOverloads constructor(
         values[0] = stats.attack.coerceIn(0, 100).toFloat()
         values[1] = stats.block.coerceIn(0, 100).toFloat()
         values[2] = stats.serve.coerceIn(0, 100).toFloat()
-        values[3] = stats.receive.coerceIn(0, 100).toFloat()
+        values[3] = stats.set.coerceIn(0, 100).toFloat()
         values[4] = stats.defense.coerceIn(0, 100).toFloat()
 
         try {
