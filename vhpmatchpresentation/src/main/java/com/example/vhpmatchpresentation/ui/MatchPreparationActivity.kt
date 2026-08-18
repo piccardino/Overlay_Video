@@ -109,8 +109,14 @@ class MatchPreparationActivity : AppCompatActivity() {
                 repo.savePhotoVariantToFirebase(uid, player.name, base64Photo, variant)
             }
             repo.refreshPhotos()
+            updateUI(currentMatchData)
             val variantLabel = if (variant == "red") " (Red Kit)" else if (variant == "blue") " (Blue Kit)" else ""
             Toast.makeText(this, "Photo updated for ${player.name}$variantLabel", Toast.LENGTH_SHORT).show()
+
+            if (activeRosterDialog?.isShowing == true) {
+                activeRosterDialog?.dismiss()
+                showActiveRosterPhotosDialog()
+            }
         }
         selectedPhotoVariant = ""
     }
@@ -193,6 +199,8 @@ class MatchPreparationActivity : AppCompatActivity() {
         }
     }
 
+    private var activeRosterDialog: AlertDialog? = null
+
     private fun updateUI(data: MatchPresentationData) {
         binding.txtPrepTeamA.text = data.teamA.name
         binding.txtPrepTeamB.text = data.teamB.name
@@ -219,11 +227,15 @@ class MatchPreparationActivity : AppCompatActivity() {
         }
 
         val countA = data.teamA.players.size
-        val photosA = data.teamA.players.count { !it.photoUri.isNullOrEmpty() }
+        val photosA = data.teamA.players.count { 
+            !it.photoUri.isNullOrEmpty() || !photoManager.getPhotoUriForPlayer(it.name, data.teamA.primaryColorHex, it.number).isNullOrEmpty()
+        }
         binding.txtPrepStatusA.text = "Players: $countA | Photos mapped: $photosA/$countA"
 
         val countB = data.teamB.players.size
-        val photosB = data.teamB.players.count { !it.photoUri.isNullOrEmpty() }
+        val photosB = data.teamB.players.count { 
+            !it.photoUri.isNullOrEmpty() || !photoManager.getPhotoUriForPlayer(it.name, data.teamB.primaryColorHex, it.number).isNullOrEmpty()
+        }
         binding.txtPrepStatusB.text = "Players: $countB | Photos mapped: $photosB/$countB"
     }
 
@@ -268,8 +280,11 @@ class MatchPreparationActivity : AppCompatActivity() {
             val statsSummary = "ATK:${player.stats.attack} BLK:${player.stats.block} SRV:${player.stats.serve}"
             txtRole.text = "${player.role}  |  $statsSummary"
 
-            if (!player.photoUri.isNullOrEmpty()) {
-                imgPhoto.load(player.photoUri) {
+            val photoUriA = player.photoUri.takeIf { !it.isNullOrEmpty() }
+                ?: photoManager.getPhotoUriForPlayer(player.name, teamA.primaryColorHex, player.number)
+
+            if (!photoUriA.isNullOrEmpty()) {
+                imgPhoto.load(photoUriA) {
                     placeholder(R.drawable.ic_player_silhouette)
                     error(R.drawable.ic_player_silhouette)
                 }
@@ -315,8 +330,11 @@ class MatchPreparationActivity : AppCompatActivity() {
             val statsSummary = "ATK:${player.stats.attack} BLK:${player.stats.block} SRV:${player.stats.serve}"
             txtRole.text = "${player.role}  |  $statsSummary"
 
-            if (!player.photoUri.isNullOrEmpty()) {
-                imgPhoto.load(player.photoUri) {
+            val photoUriB = player.photoUri.takeIf { !it.isNullOrEmpty() }
+                ?: photoManager.getPhotoUriForPlayer(player.name, teamB.primaryColorHex, player.number)
+
+            if (!photoUriB.isNullOrEmpty()) {
+                imgPhoto.load(photoUriB) {
                     placeholder(R.drawable.ic_player_silhouette)
                     error(R.drawable.ic_player_silhouette)
                 }
@@ -341,7 +359,7 @@ class MatchPreparationActivity : AppCompatActivity() {
             addView(container)
         }
 
-        AlertDialog.Builder(this)
+        activeRosterDialog = AlertDialog.Builder(this)
             .setTitle("Active Match Roster (${teamA.name} vs ${teamB.name})")
             .setView(scrollView)
             .setPositiveButton("Close", null)

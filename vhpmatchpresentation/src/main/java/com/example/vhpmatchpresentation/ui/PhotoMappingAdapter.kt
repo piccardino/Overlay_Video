@@ -8,10 +8,12 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import coil.load
 import com.example.vhpmatchpresentation.R
+import com.example.vhpmatchpresentation.data.PhotoMatchingManager
 import com.example.vhpmatchpresentation.data.PlayerPresentation
 
 class PhotoMappingAdapter(
-    private var players: List<PlayerPresentation>
+    private var players: List<PlayerPresentation>,
+    private val photoManager: PhotoMatchingManager? = null
 ) : RecyclerView.Adapter<PhotoMappingAdapter.ViewHolder>() {
 
     fun updatePlayers(newPlayers: List<PlayerPresentation>) {
@@ -35,8 +37,11 @@ class PhotoMappingAdapter(
         holder.txtName.text = "#${player.number} ${player.name}"
         holder.txtRole.text = player.role
 
-        if (!player.photoUri.isNullOrEmpty()) {
-            holder.imgPhoto.load(player.photoUri) {
+        val photo = player.photoUri.takeIf { !it.isNullOrEmpty() }
+            ?: photoManager?.getPhotoUriForPlayer(player.name, "", player.number).orEmpty()
+
+        if (photo.isNotEmpty()) {
+            holder.imgPhoto.load(photo) {
                 placeholder(R.drawable.ic_player_silhouette)
                 error(R.drawable.ic_player_silhouette)
             }

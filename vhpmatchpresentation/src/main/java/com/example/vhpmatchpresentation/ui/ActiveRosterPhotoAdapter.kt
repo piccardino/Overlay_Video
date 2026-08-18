@@ -9,13 +9,21 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import coil.load
 import com.example.vhpmatchpresentation.R
+import com.example.vhpmatchpresentation.data.PhotoMatchingManager
 import com.example.vhpmatchpresentation.data.PlayerPresentation
 
 class ActiveRosterPhotoAdapter(
     private var players: List<PlayerPresentation>,
+    private val photoManager: PhotoMatchingManager? = null,
+    private val teamColorHex: String = "",
     private val onSelectRedPhoto: (PlayerPresentation) -> Unit,
     private val onSelectBluePhoto: (PlayerPresentation) -> Unit
 ) : RecyclerView.Adapter<ActiveRosterPhotoAdapter.ViewHolder>() {
+
+    fun updatePlayers(newPlayers: List<PlayerPresentation>) {
+        this.players = newPlayers
+        notifyDataSetChanged()
+    }
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val imgPhoto: ImageView = itemView.findViewById(R.id.imgItemPhoto)
@@ -36,8 +44,11 @@ class ActiveRosterPhotoAdapter(
         val statsSummary = "ATK:${player.stats.attack} BLK:${player.stats.block} SRV:${player.stats.serve}"
         holder.txtRole.text = "${player.role}  |  $statsSummary"
 
-        if (!player.photoUri.isNullOrEmpty()) {
-            holder.imgPhoto.load(player.photoUri) {
+        val photo = player.photoUri.takeIf { !it.isNullOrEmpty() }
+            ?: photoManager?.getPhotoUriForPlayer(player.name, teamColorHex, player.number).orEmpty()
+
+        if (photo.isNotEmpty()) {
+            holder.imgPhoto.load(photo) {
                 placeholder(R.drawable.ic_player_silhouette)
                 error(R.drawable.ic_player_silhouette)
             }
