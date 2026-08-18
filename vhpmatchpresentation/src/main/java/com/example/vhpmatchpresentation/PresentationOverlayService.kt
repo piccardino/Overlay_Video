@@ -275,18 +275,27 @@ class PresentationOverlayService : Service() {
         }
     }
 
-    private fun renderCurrentState() {
-        val container = binding?.presentationFrame ?: return
-        container.removeAllViews()
+    private var lastRenderedScoreA = -1
+    private var lastRenderedScoreB = -1
+    private var lastRenderedSetsA = -1
+    private var lastRenderedSetsB = -1
+    private var lastRenderedServing = ""
+    private var lastLoadedLogoA = ""
+    private var lastLoadedLogoB = ""
 
+    private fun renderCurrentState() {
         val isScoreboard = currentState == PresentationState.LIVE_SCOREBOARD
         binding?.liveScoreboardLayout?.visibility = if (isScoreboard) View.VISIBLE else View.GONE
 
         if (isScoreboard) {
             stopAutoplay()
+            binding?.presentationFrame?.removeAllViews()
             updateScoreboardView()
             return
         }
+
+        val container = binding?.presentationFrame ?: return
+        container.removeAllViews()
 
         when (currentState) {
             PresentationState.FORMATION_A -> {
@@ -331,18 +340,46 @@ class PresentationOverlayService : Service() {
 
     private fun updateScoreboardView() {
         val b = binding ?: return
-        b.nameTeamA.text = currentData.teamA.name.uppercase()
-        b.nameTeamB.text = currentData.teamB.name.uppercase()
-        b.scoreTeamA.text = currentData.scoreA.toString()
-        b.scoreTeamB.text = currentData.scoreB.toString()
-        b.setsTeamA.text = "S:${currentData.setsA}"
-        b.setsTeamB.text = "S:${currentData.setsB}"
 
-        b.serveTeamA.visibility = if (currentData.servingTeam.equals("A", ignoreCase = true)) View.VISIBLE else View.INVISIBLE
-        b.serveTeamB.visibility = if (currentData.servingTeam.equals("B", ignoreCase = true)) View.VISIBLE else View.INVISIBLE
+        val nameA = currentData.teamA.name.uppercase()
+        val nameB = currentData.teamB.name.uppercase()
+        if (b.nameTeamA.text != nameA) b.nameTeamA.text = nameA
+        if (b.nameTeamB.text != nameB) b.nameTeamB.text = nameB
 
-        loadLogo(b.logoTeamA, currentData.teamA.logoUrl)
-        loadLogo(b.logoTeamB, currentData.teamB.logoUrl)
+        if (lastRenderedScoreA != currentData.scoreA) {
+            lastRenderedScoreA = currentData.scoreA
+            b.scoreTeamA.text = currentData.scoreA.toString()
+        }
+        if (lastRenderedScoreB != currentData.scoreB) {
+            lastRenderedScoreB = currentData.scoreB
+            b.scoreTeamB.text = currentData.scoreB.toString()
+        }
+
+        if (lastRenderedSetsA != currentData.setsA) {
+            lastRenderedSetsA = currentData.setsA
+            b.setsTeamA.text = "S:${currentData.setsA}"
+        }
+        if (lastRenderedSetsB != currentData.setsB) {
+            lastRenderedSetsB = currentData.setsB
+            b.setsTeamB.text = "S:${currentData.setsB}"
+        }
+
+        if (lastRenderedServing != currentData.servingTeam) {
+            lastRenderedServing = currentData.servingTeam
+            val isA = currentData.servingTeam.equals("A", ignoreCase = true)
+            val isB = currentData.servingTeam.equals("B", ignoreCase = true)
+            b.serveTeamA.visibility = if (isA) View.VISIBLE else View.INVISIBLE
+            b.serveTeamB.visibility = if (isB) View.VISIBLE else View.INVISIBLE
+        }
+
+        if (lastLoadedLogoA != currentData.teamA.logoUrl) {
+            lastLoadedLogoA = currentData.teamA.logoUrl
+            loadLogo(b.logoTeamA, currentData.teamA.logoUrl)
+        }
+        if (lastLoadedLogoB != currentData.teamB.logoUrl) {
+            lastLoadedLogoB = currentData.teamB.logoUrl
+            loadLogo(b.logoTeamB, currentData.teamB.logoUrl)
+        }
     }
 
     private fun loadLogo(imageView: ImageView, logoStr: String) {
