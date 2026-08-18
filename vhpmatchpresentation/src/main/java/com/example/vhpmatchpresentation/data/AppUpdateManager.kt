@@ -135,6 +135,32 @@ class AppUpdateManager(private val context: Context) {
         }
     }
 
+    private var realtimeListener: ValueEventListener? = null
+    private var realtimeRef: com.google.firebase.database.DatabaseReference? = null
+
+    fun startRealtimeListener(activity: AppCompatActivity, uid: String = "") {
+        stopRealtimeListener()
+        val checkPath = if (uid.isNotBlank()) "users/$uid/app_update" else "app_update"
+        realtimeRef = database.reference.child(checkPath)
+        realtimeListener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    handleFirebaseSnapshot(activity, snapshot, showNoUpdateToast = false)
+                }
+            }
+            override fun onCancelled(error: DatabaseError) {
+                Log.e(TAG, "Realtime update listener error: ${error.message}")
+            }
+        }
+        realtimeRef?.addValueEventListener(realtimeListener!!)
+    }
+
+    fun stopRealtimeListener() {
+        realtimeListener?.let { realtimeRef?.removeEventListener(it) }
+        realtimeListener = null
+        realtimeRef = null
+    }
+
     private fun checkFirebaseUpdates(
         activity: AppCompatActivity,
         uid: String,

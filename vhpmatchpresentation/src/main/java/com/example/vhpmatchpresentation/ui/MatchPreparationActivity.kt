@@ -132,6 +132,7 @@ class MatchPreparationActivity : AppCompatActivity() {
             repo.startObserving(currentUser.uid)
             observeRepositoryData()
             updateManager.checkForUpdates(this, currentUser.uid)
+            updateManager.startRealtimeListener(this, currentUser.uid)
         } else {
             signInWithGoogle()
         }
@@ -452,6 +453,7 @@ class MatchPreparationActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        updateManager.stopRealtimeListener()
         repo.stopObserving()
     }
 }
