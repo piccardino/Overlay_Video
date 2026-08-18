@@ -283,14 +283,7 @@ class MatchPreparationActivity : AppCompatActivity() {
             val photoUriA = player.photoUri.takeIf { !it.isNullOrEmpty() }
                 ?: photoManager.getPhotoUriForPlayer(player.name, teamA.primaryColorHex, player.number)
 
-            if (!photoUriA.isNullOrEmpty()) {
-                imgPhoto.load(photoUriA) {
-                    placeholder(R.drawable.ic_player_silhouette)
-                    error(R.drawable.ic_player_silhouette)
-                }
-            } else {
-                imgPhoto.setImageResource(R.drawable.ic_player_silhouette)
-            }
+            com.example.vhpmatchpresentation.util.ImageHelper.loadPlayerPhoto(this, imgPhoto, photoUriA)
 
             btnRed.setOnClickListener {
                 selectedPlayerForSinglePhoto = player
@@ -333,14 +326,7 @@ class MatchPreparationActivity : AppCompatActivity() {
             val photoUriB = player.photoUri.takeIf { !it.isNullOrEmpty() }
                 ?: photoManager.getPhotoUriForPlayer(player.name, teamB.primaryColorHex, player.number)
 
-            if (!photoUriB.isNullOrEmpty()) {
-                imgPhoto.load(photoUriB) {
-                    placeholder(R.drawable.ic_player_silhouette)
-                    error(R.drawable.ic_player_silhouette)
-                }
-            } else {
-                imgPhoto.setImageResource(R.drawable.ic_player_silhouette)
-            }
+            com.example.vhpmatchpresentation.util.ImageHelper.loadPlayerPhoto(this, imgPhoto, photoUriB)
 
             btnRed.setOnClickListener {
                 selectedPlayerForSinglePhoto = player

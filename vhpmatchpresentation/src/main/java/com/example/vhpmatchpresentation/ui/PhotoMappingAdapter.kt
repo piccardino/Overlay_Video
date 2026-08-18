@@ -6,10 +6,10 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import coil.load
 import com.example.vhpmatchpresentation.R
 import com.example.vhpmatchpresentation.data.PhotoMatchingManager
 import com.example.vhpmatchpresentation.data.PlayerPresentation
+import com.example.vhpmatchpresentation.util.ImageHelper
 
 class PhotoMappingAdapter(
     private var players: List<PlayerPresentation>,
@@ -40,14 +40,7 @@ class PhotoMappingAdapter(
         val photo = player.photoUri.takeIf { !it.isNullOrEmpty() }
             ?: photoManager?.getPhotoUriForPlayer(player.name, "", player.number).orEmpty()
 
-        if (photo.isNotEmpty()) {
-            holder.imgPhoto.load(photo) {
-                placeholder(R.drawable.ic_player_silhouette)
-                error(R.drawable.ic_player_silhouette)
-            }
-        } else {
-            holder.imgPhoto.setImageResource(R.drawable.ic_player_silhouette)
-        }
+        ImageHelper.loadPlayerPhoto(holder.itemView.context, holder.imgPhoto, photo)
     }
 
     override fun getItemCount(): Int = players.size
