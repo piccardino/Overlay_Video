@@ -4,9 +4,9 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:padding="8dp"
+    android:padding="10dp"
     android:background="#1E293B"
-    android:layout_marginBottom="6dp">
+    android:layout_marginBottom="8dp">
 
     <ImageView
         android:id="@+id/imgItemPhoto"
@@ -26,7 +26,6 @@
             android:id="@+id/txtItemPlayerName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Marco Rossi"
             android:textColor="#FFFFFF"
             android:textSize="15sp"
             android:textStyle="bold" />
@@ -35,9 +34,27 @@
             android:id="@+id/txtItemPlayerRole"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Schiacciatore"
+            android:layout_marginTop="2dp"
             android:textColor="#94A3B8"
             android:textSize="12sp" />
     </LinearLayout>
 
-    </LinearLayout>
+    <Button
+        android:id="@+id/btnItemRedPhoto"
+        style="@style/Widget.MaterialComponents.Button.TextButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🔴 RED"
+        android:textColor="#EF4444"
+        android:textSize="11sp" />
+
+    <Button
+        android:id="@+id/btnItemBluePhoto"
+        style="@style/Widget.MaterialComponents.Button.TextButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🔵 BLUE"
+        android:textColor="#38BDF8"
+        android:textSize="11sp" />
+
+</LinearLayout>

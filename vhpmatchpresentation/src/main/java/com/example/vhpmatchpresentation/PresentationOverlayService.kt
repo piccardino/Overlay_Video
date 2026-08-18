@@ -35,6 +35,7 @@ import androidx.core.app.NotificationCompat
 import coil.load
 import com.example.vhpmatchpresentation.data.FirebasePresentationRepository
 import com.example.vhpmatchpresentation.data.MatchPresentationData
+import com.example.vhpmatchpresentation.data.PhotoMatchingManager
 import com.example.vhpmatchpresentation.data.PlayerPresentation
 import com.example.vhpmatchpresentation.data.TeamPresentation
 import com.example.vhpmatchpresentation.databinding.ViewPresentationOverlayBinding
@@ -71,6 +72,7 @@ class PresentationOverlayService : Service() {
     private var binding: ViewPresentationOverlayBinding? = null
 
     private var repo: FirebasePresentationRepository? = null
+    private val photoManager by lazy { PhotoMatchingManager(applicationContext) }
     private val scope = CoroutineScope(Dispatchers.Main + Job())
 
     private var currentState = PresentationState.FORMATION_A
@@ -504,7 +506,13 @@ class PresentationOverlayService : Service() {
             teamBar.setBackgroundColor(Color.parseColor("#0284C7"))
         }
 
-        loadPlayerPhoto(imgPhoto, player.photoUri)
+        val photoToLoad = if (!player.photoUri.isNullOrEmpty()) {
+            player.photoUri
+        } else {
+            photoManager.getPhotoUriForPlayer(player.name, team.primaryColorHex, player.number)
+                ?: photoManager.getPhotoUriForPlayer(player.displayName, team.primaryColorHex, player.number)
+        }
+        loadPlayerPhoto(imgPhoto, photoToLoad)
 
         radarView.setStats(player.stats, team.primaryColorHex, animate = true)
 

@@ -9,6 +9,13 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
+import android.graphics.Typeface
+import android.view.LayoutInflater
+import android.widget.Button
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -22,6 +29,7 @@ import coil.load
 import com.example.vhpmatchpresentation.DirectOverlayRecorderService
 import com.example.vhpmatchpresentation.PresentationOverlayService
 import com.example.vhpmatchpresentation.R
+import com.example.vhpmatchpresentation.data.AppUpdateManager
 import com.example.vhpmatchpresentation.data.FirebasePresentationRepository
 import com.example.vhpmatchpresentation.data.MatchPresentationData
 import com.example.vhpmatchpresentation.data.PhotoMatchingManager
@@ -41,10 +49,11 @@ class MatchPreparationActivity : AppCompatActivity() {
     private lateinit var auth: FirebaseAuth
     private lateinit var repo: FirebasePresentationRepository
     private lateinit var photoManager: PhotoMatchingManager
+    private lateinit var updateManager: AppUpdateManager
 
     private var currentMatchData = MatchPresentationData()
     private var selectedPlayerForSinglePhoto: PlayerPresentation? = null
-    private var activeMappingAdapter: PhotoMappingAdapter? = null
+    private var selectedPhotoVariant: String = ""
 
     private val requestOverlayPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -73,21 +82,11 @@ class MatchPreparationActivity : AppCompatActivity() {
         }
     }
 
-    private val pickMultiplePhotosLauncher = registerForActivityResult(
-        ActivityResultContracts.OpenMultipleDocuments()
-    ) { uris ->
-        if (uris.isNotEmpty()) {
-            val allPlayers = currentMatchData.teamA.players + currentMatchData.teamB.players
-            val matches = photoManager.autoMatchPhotos(uris, allPlayers)
-            Toast.makeText(this, "${matches.size} photos automatically matched!", Toast.LENGTH_LONG).show()
-            repo.refreshPhotos()
-        }
-    }
-
     private val pickSinglePhotoLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         val player = selectedPlayerForSinglePhoto
+        val variant = selectedPhotoVariant
         if (uri != null && player != null) {
             try {
                 contentResolver.takePersistableUriPermission(
@@ -97,13 +96,23 @@ class MatchPreparationActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 e.printStackTrace()
             }
-            photoManager.savePhotoForPlayer(player.name, uri.toString())
+            val base64Photo = photoManager.convertUriToBase64(uri.toString())
+            photoManager.savePhotoForPlayer(player.name, base64Photo, variant)
             if (player.displayName.isNotBlank()) {
-                photoManager.savePhotoForPlayer(player.displayName, uri.toString())
+                photoManager.savePhotoForPlayer(player.displayName, base64Photo, variant)
+            }
+            if (player.number.isNotBlank()) {
+                photoManager.savePhotoForNumber(player.number, base64Photo, variant)
+            }
+            val uid = auth.currentUser?.uid
+            if (!uid.isNullOrEmpty()) {
+                repo.savePhotoVariantToFirebase(uid, player.name, base64Photo, variant)
             }
             repo.refreshPhotos()
-            Toast.makeText(this, "Photo updated for ${player.name}", Toast.LENGTH_SHORT).show()
+            val variantLabel = if (variant == "red") " (Red Kit)" else if (variant == "blue") " (Blue Kit)" else ""
+            Toast.makeText(this, "Photo updated for ${player.name}$variantLabel", Toast.LENGTH_SHORT).show()
         }
+        selectedPhotoVariant = ""
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -114,6 +123,7 @@ class MatchPreparationActivity : AppCompatActivity() {
         auth = FirebaseAuth.getInstance()
         repo = FirebasePresentationRepository(applicationContext)
         photoManager = PhotoMatchingManager(applicationContext)
+        updateManager = AppUpdateManager(applicationContext)
 
         setupListeners()
 
@@ -121,6 +131,7 @@ class MatchPreparationActivity : AppCompatActivity() {
         if (currentUser != null) {
             repo.startObserving(currentUser.uid)
             observeRepositoryData()
+            updateManager.checkForUpdates(this, currentUser.uid)
         } else {
             signInWithGoogle()
         }
@@ -148,12 +159,16 @@ class MatchPreparationActivity : AppCompatActivity() {
             }
         }
 
-        binding.btnImportPhotos.setOnClickListener {
-            showVerifyMappingsDialog()
+        binding.btnManualPhotoWizard.setOnClickListener {
+            showActiveRosterPhotosDialog()
         }
 
         binding.btnStartPresentationOverlay.setOnClickListener {
             toggleOverlayService()
+        }
+
+        binding.btnCheckUpdates.setOnClickListener {
+            updateManager.checkForUpdates(this, auth.currentUser?.uid ?: "", showNoUpdateToast = true)
         }
     }
 
@@ -209,48 +224,126 @@ class MatchPreparationActivity : AppCompatActivity() {
         val countB = data.teamB.players.size
         val photosB = data.teamB.players.count { !it.photoUri.isNullOrEmpty() }
         binding.txtPrepStatusB.text = "Players: $countB | Photos mapped: $photosB/$countB"
-
-        val allPlayers = data.teamA.players + data.teamB.players
-        activeMappingAdapter?.updatePlayers(allPlayers)
     }
 
-    private fun showVerifyMappingsDialog() {
-        val allPlayers = currentMatchData.teamA.players + currentMatchData.teamB.players
-        if (allPlayers.isEmpty()) {
-            Toast.makeText(this, "No players available in roster.", Toast.LENGTH_SHORT).show()
+    private fun showActiveRosterPhotosDialog() {
+        val teamA = currentMatchData.teamA
+        val teamB = currentMatchData.teamB
+
+        if (teamA.players.isEmpty() && teamB.players.isEmpty()) {
+            Toast.makeText(this, "No active players in current match roster.", Toast.LENGTH_SHORT).show()
             return
         }
 
-        activeMappingAdapter = PhotoMappingAdapter(
-            players = allPlayers,
-            onSelectPhotoClicked = { player ->
-                selectedPlayerForSinglePhoto = player
-                pickSinglePhotoLauncher.launch(arrayOf("image/*"))
-            },
-            onRemovePhotoClicked = { player ->
-                photoManager.removePhotoForPlayer(player.name)
-                if (player.displayName.isNotBlank()) {
-                    photoManager.removePhotoForPlayer(player.displayName)
-                }
-                repo.refreshPhotos()
-                Toast.makeText(this@MatchPreparationActivity, "Photo removed for ${player.name}", Toast.LENGTH_SHORT).show()
-            }
-        )
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(32, 24, 32, 24)
+        }
 
-        val recyclerView = RecyclerView(this).apply {
-            layoutManager = LinearLayoutManager(this@MatchPreparationActivity)
-            adapter = activeMappingAdapter
+        val inflater = LayoutInflater.from(this)
+
+        // Section Team A
+        val colorTypeA = photoManager.determineColorType(teamA.primaryColorHex)
+        val isRedA = colorTypeA == "red"
+        val headerA = TextView(this).apply {
+            text = if (isRedA) "🔴 ${teamA.name.uppercase()} (${teamA.players.size} GIOCATORI - ROSSA)"
+            else "🔵 ${teamA.name.uppercase()} (${teamA.players.size} GIOCATORI - BLU)"
+            textSize = 15f
+            setTypeface(null, Typeface.BOLD)
+            setTextColor(Color.parseColor(if (isRedA) "#EF4444" else "#38BDF8"))
+            setPadding(0, 12, 0, 12)
+        }
+        container.addView(headerA)
+
+        for (player in teamA.players) {
+            val itemView = inflater.inflate(R.layout.item_active_roster_player_photo, container, false)
+            val imgPhoto = itemView.findViewById<ImageView>(R.id.imgItemPhoto)
+            val txtName = itemView.findViewById<TextView>(R.id.txtItemPlayerName)
+            val txtRole = itemView.findViewById<TextView>(R.id.txtItemPlayerRole)
+            val btnRed = itemView.findViewById<Button>(R.id.btnItemRedPhoto)
+            val btnBlue = itemView.findViewById<Button>(R.id.btnItemBluePhoto)
+
+            txtName.text = "#${player.number} ${player.name}"
+            val statsSummary = "ATK:${player.stats.attack} BLK:${player.stats.block} SRV:${player.stats.serve}"
+            txtRole.text = "${player.role}  |  $statsSummary"
+
+            if (!player.photoUri.isNullOrEmpty()) {
+                imgPhoto.load(player.photoUri) {
+                    placeholder(R.drawable.ic_player_silhouette)
+                    error(R.drawable.ic_player_silhouette)
+                }
+            } else {
+                imgPhoto.setImageResource(R.drawable.ic_player_silhouette)
+            }
+
+            btnRed.setOnClickListener {
+                selectedPlayerForSinglePhoto = player
+                selectedPhotoVariant = "red"
+                pickSinglePhotoLauncher.launch(arrayOf("image/*"))
+            }
+            btnBlue.setOnClickListener {
+                selectedPlayerForSinglePhoto = player
+                selectedPhotoVariant = "blue"
+                pickSinglePhotoLauncher.launch(arrayOf("image/*"))
+            }
+            container.addView(itemView)
+        }
+
+        // Section Team B
+        val colorTypeB = photoManager.determineColorType(teamB.primaryColorHex)
+        val isRedB = colorTypeB == "red"
+        val headerB = TextView(this).apply {
+            text = if (isRedB) "🔴 ${teamB.name.uppercase()} (${teamB.players.size} GIOCATORI - ROSSA)"
+            else "🔵 ${teamB.name.uppercase()} (${teamB.players.size} GIOCATORI - BLU)"
+            textSize = 15f
+            setTypeface(null, Typeface.BOLD)
+            setTextColor(Color.parseColor(if (isRedB) "#EF4444" else "#38BDF8"))
+            setPadding(0, 24, 0, 12)
+        }
+        container.addView(headerB)
+
+        for (player in teamB.players) {
+            val itemView = inflater.inflate(R.layout.item_active_roster_player_photo, container, false)
+            val imgPhoto = itemView.findViewById<ImageView>(R.id.imgItemPhoto)
+            val txtName = itemView.findViewById<TextView>(R.id.txtItemPlayerName)
+            val txtRole = itemView.findViewById<TextView>(R.id.txtItemPlayerRole)
+            val btnRed = itemView.findViewById<Button>(R.id.btnItemRedPhoto)
+            val btnBlue = itemView.findViewById<Button>(R.id.btnItemBluePhoto)
+
+            txtName.text = "#${player.number} ${player.name}"
+            val statsSummary = "ATK:${player.stats.attack} BLK:${player.stats.block} SRV:${player.stats.serve}"
+            txtRole.text = "${player.role}  |  $statsSummary"
+
+            if (!player.photoUri.isNullOrEmpty()) {
+                imgPhoto.load(player.photoUri) {
+                    placeholder(R.drawable.ic_player_silhouette)
+                    error(R.drawable.ic_player_silhouette)
+                }
+            } else {
+                imgPhoto.setImageResource(R.drawable.ic_player_silhouette)
+            }
+
+            btnRed.setOnClickListener {
+                selectedPlayerForSinglePhoto = player
+                selectedPhotoVariant = "red"
+                pickSinglePhotoLauncher.launch(arrayOf("image/*"))
+            }
+            btnBlue.setOnClickListener {
+                selectedPlayerForSinglePhoto = player
+                selectedPhotoVariant = "blue"
+                pickSinglePhotoLauncher.launch(arrayOf("image/*"))
+            }
+            container.addView(itemView)
+        }
+
+        val scrollView = ScrollView(this).apply {
+            addView(container)
         }
 
         AlertDialog.Builder(this)
-            .setTitle("Verify Player Photos")
-            .setView(recyclerView)
-            .setPositiveButton("Close") { dialog, _ ->
-                activeMappingAdapter = null
-            }
-            .setOnDismissListener {
-                activeMappingAdapter = null
-            }
+            .setTitle("Active Match Roster (${teamA.name} vs ${teamB.name})")
+            .setView(scrollView)
+            .setPositiveButton("Close", null)
             .show()
     }
 
@@ -348,6 +441,7 @@ class MatchPreparationActivity : AppCompatActivity() {
                     Log.i("MatchPrepAuth", "Firebase auth successful for uid: ${it.uid}")
                     repo.startObserving(it.uid)
                     observeRepositoryData()
+                    updateManager.checkForUpdates(this, it.uid)
                 }
             } else {
                 Log.e("MatchPrepAuth", "Firebase auth with Google failed", task.exception)

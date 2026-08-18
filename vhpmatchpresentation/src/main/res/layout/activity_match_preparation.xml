@@ -170,15 +170,14 @@
         </com.google.android.material.card.MaterialCardView>
 
         <Button
-            android:id="@+id/btnImportPhotos"
+            android:id="@+id/btnManualPhotoWizard"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             android:layout_width="match_parent"
             android:layout_height="54dp"
             android:layout_marginTop="24dp"
-            android:text="VERIFY PHOTO MATCHES"
-            android:textColor="#00E5FF"
-            app:strokeColor="#00E5FF" />
-
+            android:text="ACTIVE ROSTER PHOTOS (RED &amp; BLUE KITS)"
+            android:textColor="#38BDF8"
+            app:strokeColor="#38BDF8" />
 
         <Button
             android:id="@+id/btnStartPresentationOverlay"
@@ -190,6 +189,16 @@
             android:textColor="#FFFFFF"
             android:textSize="16sp"
             android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnCheckUpdates"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="16dp"
+            android:text="🔄 VERIFICA AGGIORNAMENTI (OTA)"
+            android:textColor="#94A3B8" />
 
     </LinearLayout>
 
