@@ -239,49 +239,43 @@ class FirebasePresentationRepository(private val context: Context) {
         if (colorB.isEmpty()) colorB = "#E11D48"
 
         // 3. COMPREHENSIVE SERVE / BALL LOGIC (Volleyball Rally Point System):
-        val scoreChanged = (lastScoreA >= 0 && lastScoreB >= 0) && (scoreA != lastScoreA || scoreB != lastScoreB)
-
-        if (scoreChanged) {
-            // When points are scored during the match, the team that won the rally gets the serve
-            if (scoreA > lastScoreA && scoreB == lastScoreB) {
-                // Team A scored the point -> Team A serves
-                currentServingTeam = "A"
-            } else if (scoreB > lastScoreB && scoreA == lastScoreA) {
-                // Team B scored the point -> Team B serves
-                currentServingTeam = "B"
-            } else if (scoreA > lastScoreA && scoreB > lastScoreB) {
-                val diffA = scoreA - lastScoreA
-                val diffB = scoreB - lastScoreB
-                if (diffA > diffB) currentServingTeam = "A"
-                else if (diffB > diffA) currentServingTeam = "B"
-            } else if (scoreA == 0 && scoreB == 0) {
-                // Match or Set reset to 0-0
-                val liveExplicit = liveSnap?.let { extractServingString(it, "servingTeam", "serving", "server", "battuta", "palla", "serve") }.orEmpty()
-                currentServingTeam = normalizeServingTeam(liveExplicit, nameA, nameB)
-            }
+        if (scoreA == 0 && scoreB == 0) {
+            // When score is 0 - 0: hide the ball completely
+            currentServingTeam = ""
         } else {
-            // Points did NOT change in this snapshot (e.g. initial app startup, timeout, manual serve toggle from watch/web)
-            // Check if the live match node has an explicit live server
-            val liveExplicit = liveSnap?.let {
-                extractServingString(
-                    it,
-                    "servingTeam", "serving", "server", "currentServe", "currentServer",
-                    "battuta", "battitore", "servizio", "palla", "ball", "turnToServe",
-                    "serveTeam", "battutaTeam", "possession", "activeServe", "whoServes"
-                )
-            }.orEmpty()
-            val normalizedLive = normalizeServingTeam(liveExplicit, nameA, nameB)
+            val scoreChanged = (lastScoreA >= 0 && lastScoreB >= 0) && (scoreA != lastScoreA || scoreB != lastScoreB)
 
-            if (normalizedLive.isNotEmpty()) {
-                currentServingTeam = normalizedLive
-            } else if (lastScoreA < 0 || lastScoreB < 0) {
-                // Initial startup before any point change
-                if (scoreA == 0 && scoreB == 0) {
-                    currentServingTeam = ""
-                } else if (scoreA > scoreB) {
+            if (scoreChanged) {
+                // When points are scored during the match, the team that won the rally gets the serve
+                if (scoreA > lastScoreA && scoreB == lastScoreB) {
+                    // Team A scored the point -> Team A serves
                     currentServingTeam = "A"
-                } else if (scoreB > scoreA) {
+                } else if (scoreB > lastScoreB && scoreA == lastScoreA) {
+                    // Team B scored the point -> Team B serves
                     currentServingTeam = "B"
+                } else if (scoreA > lastScoreA && scoreB > lastScoreB) {
+                    val diffA = scoreA - lastScoreA
+                    val diffB = scoreB - lastScoreB
+                    if (diffA > diffB) currentServingTeam = "A"
+                    else if (diffB > diffA) currentServingTeam = "B"
+                }
+            } else if (currentServingTeam.isEmpty()) {
+                // Initial load with existing non-zero score (e.g. app opened mid-match at 3-1)
+                val liveExplicit = liveSnap?.let {
+                    extractServingString(
+                        it,
+                        "servingTeam", "serving", "server", "currentServe", "currentServer",
+                        "battuta", "battitore", "servizio", "palla", "ball", "turnToServe",
+                        "serveTeam", "battutaTeam", "possession", "activeServe", "whoServes"
+                    )
+                }.orEmpty()
+                val normalizedLive = normalizeServingTeam(liveExplicit, nameA, nameB)
+
+                if (normalizedLive.isNotEmpty()) {
+                    currentServingTeam = normalizedLive
+                } else {
+                    if (scoreA > scoreB) currentServingTeam = "A"
+                    else if (scoreB > scoreA) currentServingTeam = "B"
                 }
             }
         }
