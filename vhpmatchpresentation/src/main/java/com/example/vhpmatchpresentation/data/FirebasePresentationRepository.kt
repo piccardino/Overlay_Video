@@ -64,10 +64,29 @@ class FirebasePresentationRepository(private val context: Context) {
         _presentationData.value = current.copy(teamA = updatedTeamA, teamB = updatedTeamB)
     }
 
+    private val liveListeners = mutableListOf<Pair<com.google.firebase.database.DatabaseReference, ValueEventListener>>()
+
     fun startObserving(uid: String, matchKey: String = "", source: String = "index") {
         if (uid.isEmpty()) return
         Log.i("FirebaseRepo", "startObserving for uid: $uid")
+        stopObserving()
 
+        // 1. Attach direct instantaneous listeners to dedicated live match score nodes (< 5ms latency)
+        val livePaths = listOf(
+            "users/$uid/matchData/liveMatchProgress_index",
+            "users/$uid/matchData/liveMatchProgress_local",
+            "users/$uid/matchData/liveMatchProgress",
+            "users/$uid/matchData/liveMatch",
+            "users/$uid/liveMatchProgress_index",
+            "users/$uid/liveMatchProgress",
+            "users/$uid/liveMatch",
+            "users/$uid/matchData/scoreboard"
+        )
+        for (path in livePaths) {
+            registerLiveScoreListener(database.getReference(path))
+        }
+
+        // 2. Attach full tree listener for initial team lineup and roster structure
         userRootRef = database.getReference("users/$uid")
         userListener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
@@ -84,6 +103,88 @@ class FirebasePresentationRepository(private val context: Context) {
             }
         }
         userRootRef?.addValueEventListener(userListener!!)
+    }
+
+    private fun registerLiveScoreListener(ref: com.google.firebase.database.DatabaseReference) {
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    updateLiveScoreInstant(snapshot)
+                }
+            }
+            override fun onCancelled(error: DatabaseError) {
+                Log.w("FirebaseRepo", "Live score listener cancelled: ${error.message}")
+            }
+        }
+        ref.addValueEventListener(listener)
+        liveListeners.add(Pair(ref, listener))
+    }
+
+    private fun updateLiveScoreInstant(liveSnap: DataSnapshot) {
+        val scoreA = liveSnap.child("scoreA").getValue(Int::class.java)
+            ?: liveSnap.child("puntiA").getValue(Int::class.java)
+            ?: liveSnap.child("pointsA").getValue(Int::class.java)
+            ?: _presentationData.value.scoreA
+
+        val scoreB = liveSnap.child("scoreB").getValue(Int::class.java)
+            ?: liveSnap.child("puntiB").getValue(Int::class.java)
+            ?: liveSnap.child("pointsB").getValue(Int::class.java)
+            ?: _presentationData.value.scoreB
+
+        val setsA = liveSnap.child("setsWonA").getValue(Int::class.java)
+            ?: liveSnap.child("setsA").getValue(Int::class.java)
+            ?: liveSnap.child("setA").getValue(Int::class.java)
+            ?: _presentationData.value.setsA
+
+        val setsB = liveSnap.child("setsWonB").getValue(Int::class.java)
+            ?: liveSnap.child("setsB").getValue(Int::class.java)
+            ?: liveSnap.child("setB").getValue(Int::class.java)
+            ?: _presentationData.value.setsB
+
+        // Fast Rally Point serve computation
+        if (scoreA == 0 && scoreB == 0) {
+            currentServingTeam = ""
+        } else {
+            val scoreChanged = (lastScoreA >= 0 && lastScoreB >= 0) && (scoreA != lastScoreA || scoreB != lastScoreB)
+            if (scoreChanged) {
+                if (scoreA > lastScoreA && scoreB == lastScoreB) {
+                    currentServingTeam = "A"
+                } else if (scoreB > lastScoreB && scoreA == lastScoreA) {
+                    currentServingTeam = "B"
+                } else if (scoreA > lastScoreA && scoreB > lastScoreB) {
+                    val diffA = scoreA - lastScoreA
+                    val diffB = scoreB - lastScoreB
+                    if (diffA > diffB) currentServingTeam = "A"
+                    else if (diffB > diffA) currentServingTeam = "B"
+                }
+            } else if (currentServingTeam.isEmpty()) {
+                val liveExplicit = extractServingString(
+                    liveSnap,
+                    "servingTeam", "serving", "server", "currentServe", "currentServer",
+                    "battuta", "battitore", "servizio", "palla", "ball", "turnToServe",
+                    "serveTeam", "battutaTeam", "possession", "activeServe", "whoServes"
+                )
+                val normalizedLive = normalizeServingTeam(liveExplicit, _presentationData.value.teamA.name, _presentationData.value.teamB.name)
+                if (normalizedLive.isNotEmpty()) {
+                    currentServingTeam = normalizedLive
+                } else {
+                    if (scoreA > scoreB) currentServingTeam = "A"
+                    else if (scoreB > scoreA) currentServingTeam = "B"
+                }
+            }
+        }
+
+        lastScoreA = scoreA
+        lastScoreB = scoreB
+
+        val current = _presentationData.value
+        _presentationData.value = current.copy(
+            scoreA = scoreA,
+            scoreB = scoreB,
+            setsA = setsA,
+            setsB = setsB,
+            servingTeam = currentServingTeam
+        )
     }
 
     private var lastUserSnap: DataSnapshot? = null
@@ -877,5 +978,9 @@ class FirebasePresentationRepository(private val context: Context) {
 
     fun stopObserving() {
         userListener?.let { userRootRef?.removeEventListener(it) }
+        for ((ref, listener) in liveListeners) {
+            ref.removeEventListener(listener)
+        }
+        liveListeners.clear()
     }
 }
