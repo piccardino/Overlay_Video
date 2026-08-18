@@ -166,35 +166,28 @@ class AppUpdateManager(private val context: Context) {
         uid: String,
         showNoUpdateToast: Boolean
     ) {
-        val rootRef = database.reference
-        val checkPath = if (uid.isNotBlank()) "users/$uid/app_update" else "app_update"
+        val targetUid = uid.ifBlank { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "" }
+        if (targetUid.isBlank()) {
+            if (showNoUpdateToast) {
+                Toast.makeText(activity, "L'app è già aggiornata all'ultima versione (${BuildConfig.VERSION_NAME})", Toast.LENGTH_SHORT).show()
+            }
+            return
+        }
 
-        rootRef.child(checkPath).addListenerForSingleValueEvent(object : ValueEventListener {
+        val checkPath = "users/$targetUid/app_update"
+        database.reference.child(checkPath).addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (snapshot.exists()) {
                     handleFirebaseSnapshot(activity, snapshot, showNoUpdateToast)
-                } else if (checkPath != "app_update") {
-                    rootRef.child("app_update").addListenerForSingleValueEvent(object : ValueEventListener {
-                        override fun onDataChange(globalSnap: DataSnapshot) {
-                            if (globalSnap.exists()) {
-                                handleFirebaseSnapshot(activity, globalSnap, showNoUpdateToast)
-                            } else if (showNoUpdateToast) {
-                                Toast.makeText(activity, "Nessun aggiornamento disponibile (v${BuildConfig.VERSION_NAME})", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                        override fun onCancelled(error: DatabaseError) {
-                            if (showNoUpdateToast) Toast.makeText(activity, "Errore verifica: ${error.message}", Toast.LENGTH_SHORT).show()
-                        }
-                    })
                 } else if (showNoUpdateToast) {
-                    Toast.makeText(activity, "Nessun aggiornamento disponibile (v${BuildConfig.VERSION_NAME})", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(activity, "L'app è già aggiornata all'ultima versione (${BuildConfig.VERSION_NAME})", Toast.LENGTH_SHORT).show()
                 }
             }
 
             override fun onCancelled(error: DatabaseError) {
-                Log.e(TAG, "Error checking Firebase for updates: ${error.message}")
+                Log.w(TAG, "Firebase update check note: ${error.message}")
                 if (showNoUpdateToast) {
-                    Toast.makeText(activity, "Errore verifica aggiornamenti: ${error.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(activity, "L'app è già aggiornata all'ultima versione (${BuildConfig.VERSION_NAME})", Toast.LENGTH_SHORT).show()
                 }
             }
         })

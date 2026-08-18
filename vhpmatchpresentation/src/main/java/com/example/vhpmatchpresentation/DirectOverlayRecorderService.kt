@@ -87,7 +87,7 @@ class DirectOverlayRecorderService : Service() {
                 setOutputFile(currentFile!!.absolutePath)
                 setVideoSize(width, height)
                 setVideoEncoder(MediaRecorder.VideoEncoder.H264)
-                setVideoEncodingBitRate(10000000)
+                setVideoEncodingBitRate(18000000)
                 setVideoFrameRate(30)
                 prepare()
             }
@@ -99,6 +99,12 @@ class DirectOverlayRecorderService : Service() {
 
             handlerThread = HandlerThread("OverlayRenderThread").apply { start() }
             handler = Handler(handlerThread!!.looper)
+
+            val renderPaint = android.graphics.Paint(
+                android.graphics.Paint.ANTI_ALIAS_FLAG or 
+                android.graphics.Paint.FILTER_BITMAP_FLAG or 
+                android.graphics.Paint.DITHER_FLAG
+            )
 
             handler?.post(object : Runnable {
                 override fun run() {
@@ -119,8 +125,15 @@ class DirectOverlayRecorderService : Service() {
                                 val w = Math.max(1, overlayView.measuredWidth)
                                 val h = Math.max(1, overlayView.measuredHeight)
 
-                                val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                                val targetWidth = width.toFloat() * 0.85f
+                                val scale = Math.min(targetWidth / w.toFloat(), height.toFloat() * 0.85f / h.toFloat())
+                                val targetW = Math.max(1, (w * scale).toInt())
+                                val targetH = Math.max(1, (h * scale).toInt())
+
+                                // High-Definition Native Vector Scale Render: Crisp text & radar charts
+                                val bitmap = Bitmap.createBitmap(targetW, targetH, Bitmap.Config.ARGB_8888)
                                 val viewCanvas = Canvas(bitmap)
+                                viewCanvas.scale(scale, scale)
                                 overlayView.draw(viewCanvas)
 
                                 val localSurface = surface
@@ -128,18 +141,10 @@ class DirectOverlayRecorderService : Service() {
                                     val canvas = localSurface.lockCanvas(null)
                                     canvas.drawColor(Color.BLACK)
 
-                                    // Center presentation content within 1080p frame
-                                    val targetWidth = width.toFloat() * 0.85f
-                                    val scale = Math.min(targetWidth / w.toFloat(), height.toFloat() * 0.85f / h.toFloat())
+                                    val cx = (width - targetW) / 2f
+                                    val cy = (height - targetH) / 2f
 
-                                    val cx = (width - (w * scale)) / 2f
-                                    val cy = (height - (h * scale)) / 2f
-
-                                    val saveCount = canvas.save()
-                                    canvas.translate(cx, cy)
-                                    canvas.scale(scale, scale)
-                                    canvas.drawBitmap(bitmap, 0f, 0f, null)
-                                    canvas.restoreToCount(saveCount)
+                                    canvas.drawBitmap(bitmap, cx, cy, renderPaint)
 
                                     localSurface.unlockCanvasAndPost(canvas)
                                 }
