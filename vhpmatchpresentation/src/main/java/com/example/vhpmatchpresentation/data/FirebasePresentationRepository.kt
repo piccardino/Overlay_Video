@@ -961,6 +961,52 @@ class FirebasePresentationRepository(private val context: Context) {
         }
     }
 
+    fun removePhotoFromFirebase(uid: String, name: String, number: String = "") {
+        val normKey = PhotoMatchingManager.normalizeName(name)
+        if (uid.isNotBlank()) {
+            if (normKey.isNotBlank()) {
+                database.getReference("users/$uid/photoMappings/$normKey").removeValue()
+                database.getReference("users/$uid/photoMappings/${normKey}_red").removeValue()
+                database.getReference("users/$uid/photoMappings/${normKey}_blue").removeValue()
+                database.getReference("users/$uid/photoMappings/${normKey}_rossa").removeValue()
+                database.getReference("users/$uid/photoMappings/${normKey}_azzurra").removeValue()
+            }
+            val numTrimmed = number.trim().replace("[^0-9]".toRegex(), "")
+            if (numTrimmed.isNotBlank()) {
+                val numKey = "num_$numTrimmed"
+                database.getReference("users/$uid/photoMappings/$numKey").removeValue()
+                database.getReference("users/$uid/photoMappings/${numKey}_red").removeValue()
+                database.getReference("users/$uid/photoMappings/${numKey}_blue").removeValue()
+                database.getReference("users/$uid/photoMappings/${numKey}_rossa").removeValue()
+                database.getReference("users/$uid/photoMappings/${numKey}_azzurra").removeValue()
+            }
+
+            val playersRef = database.getReference("users/$uid/players")
+            playersRef.addListenerForSingleValueEvent(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    if (snapshot.exists()) {
+                        for (child in snapshot.children) {
+                            val pName = child.child("name").getValue(String::class.java)
+                                ?: child.child("nome").getValue(String::class.java) ?: ""
+                            val pNum = child.child("number").getValue(Any::class.java)?.toString()
+                                ?: child.child("numero").getValue(Any::class.java)?.toString() ?: ""
+                            if ((normKey.isNotBlank() && PhotoMatchingManager.normalizeName(pName) == normKey) ||
+                                (numTrimmed.isNotBlank() && pNum.trim().replace("[^0-9]".toRegex(), "") == numTrimmed)) {
+                                child.ref.child("photoUrl").setValue("")
+                                child.ref.child("photo").setValue("")
+                                child.ref.child("photoRed").setValue("")
+                                child.ref.child("photoBlue").setValue("")
+                                child.ref.child("photoRossa").setValue("")
+                                child.ref.child("photoAzzurra").setValue("")
+                            }
+                        }
+                    }
+                }
+                override fun onCancelled(error: DatabaseError) {}
+            })
+        }
+    }
+
     private fun parseStat(snap: DataSnapshot?, key1: String, key2: String, defaultVal: Int): Int {
         if (snap == null || !snap.exists()) return defaultVal
         val rawNum = snap.child(key1).getValue(Double::class.java)

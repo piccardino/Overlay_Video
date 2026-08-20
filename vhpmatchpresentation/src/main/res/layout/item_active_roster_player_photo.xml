@@ -44,6 +44,9 @@
         style="@style/Widget.MaterialComponents.Button.TextButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:minWidth="0dp"
+        android:paddingLeft="6dp"
+        android:paddingRight="6dp"
         android:text="🔴 RED"
         android:textColor="#EF4444"
         android:textSize="11sp" />
@@ -53,8 +56,20 @@
         style="@style/Widget.MaterialComponents.Button.TextButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:minWidth="0dp"
+        android:paddingLeft="6dp"
+        android:paddingRight="6dp"
         android:text="🔵 BLUE"
         android:textColor="#38BDF8"
         android:textSize="11sp" />
+
+    <ImageButton
+        android:id="@+id/btnItemRemovePhoto"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_close"
+        android:contentDescription="Rimuovi Foto"
+        android:padding="6dp" />
 
 </LinearLayout>

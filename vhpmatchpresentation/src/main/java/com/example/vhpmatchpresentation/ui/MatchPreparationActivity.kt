@@ -12,6 +12,7 @@ import android.util.Log
 import android.graphics.Typeface
 import android.view.LayoutInflater
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -275,6 +276,7 @@ class MatchPreparationActivity : AppCompatActivity() {
             val txtRole = itemView.findViewById<TextView>(R.id.txtItemPlayerRole)
             val btnRed = itemView.findViewById<Button>(R.id.btnItemRedPhoto)
             val btnBlue = itemView.findViewById<Button>(R.id.btnItemBluePhoto)
+            val btnRemove = itemView.findViewById<ImageButton>(R.id.btnItemRemovePhoto)
 
             txtName.text = "#${player.number} ${player.name}"
             val statsSummary = "ATK:${player.stats.attack} BLK:${player.stats.block} SRV:${player.stats.serve}"
@@ -294,6 +296,26 @@ class MatchPreparationActivity : AppCompatActivity() {
                 selectedPlayerForSinglePhoto = player
                 selectedPhotoVariant = "blue"
                 pickSinglePhotoLauncher.launch(arrayOf("image/*"))
+            }
+            btnRemove.setOnClickListener {
+                photoManager.removePhotoForPlayer(player.name, player.number)
+                if (player.displayName.isNotBlank()) {
+                    photoManager.removePhotoForPlayer(player.displayName, player.number)
+                }
+                val uid = auth.currentUser?.uid
+                if (!uid.isNullOrEmpty()) {
+                    repo.removePhotoFromFirebase(uid, player.name, player.number)
+                    if (player.displayName.isNotBlank()) {
+                        repo.removePhotoFromFirebase(uid, player.displayName, player.number)
+                    }
+                }
+                repo.refreshPhotos()
+                updateUI(currentMatchData)
+                Toast.makeText(this, "Foto rimossa per #${player.number} ${player.name}", Toast.LENGTH_SHORT).show()
+                if (activeRosterDialog?.isShowing == true) {
+                    activeRosterDialog?.dismiss()
+                    showActiveRosterPhotosDialog()
+                }
             }
             container.addView(itemView)
         }
@@ -318,6 +340,7 @@ class MatchPreparationActivity : AppCompatActivity() {
             val txtRole = itemView.findViewById<TextView>(R.id.txtItemPlayerRole)
             val btnRed = itemView.findViewById<Button>(R.id.btnItemRedPhoto)
             val btnBlue = itemView.findViewById<Button>(R.id.btnItemBluePhoto)
+            val btnRemove = itemView.findViewById<ImageButton>(R.id.btnItemRemovePhoto)
 
             txtName.text = "#${player.number} ${player.name}"
             val statsSummary = "ATK:${player.stats.attack} BLK:${player.stats.block} SRV:${player.stats.serve}"
@@ -337,6 +360,26 @@ class MatchPreparationActivity : AppCompatActivity() {
                 selectedPlayerForSinglePhoto = player
                 selectedPhotoVariant = "blue"
                 pickSinglePhotoLauncher.launch(arrayOf("image/*"))
+            }
+            btnRemove.setOnClickListener {
+                photoManager.removePhotoForPlayer(player.name, player.number)
+                if (player.displayName.isNotBlank()) {
+                    photoManager.removePhotoForPlayer(player.displayName, player.number)
+                }
+                val uid = auth.currentUser?.uid
+                if (!uid.isNullOrEmpty()) {
+                    repo.removePhotoFromFirebase(uid, player.name, player.number)
+                    if (player.displayName.isNotBlank()) {
+                        repo.removePhotoFromFirebase(uid, player.displayName, player.number)
+                    }
+                }
+                repo.refreshPhotos()
+                updateUI(currentMatchData)
+                Toast.makeText(this, "Foto rimossa per #${player.number} ${player.name}", Toast.LENGTH_SHORT).show()
+                if (activeRosterDialog?.isShowing == true) {
+                    activeRosterDialog?.dismiss()
+                    showActiveRosterPhotosDialog()
+                }
             }
             container.addView(itemView)
         }

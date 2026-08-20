@@ -17,7 +17,8 @@ class ActiveRosterPhotoAdapter(
     private val photoManager: PhotoMatchingManager? = null,
     private val teamColorHex: String = "",
     private val onSelectRedPhoto: (PlayerPresentation) -> Unit,
-    private val onSelectBluePhoto: (PlayerPresentation) -> Unit
+    private val onSelectBluePhoto: (PlayerPresentation) -> Unit,
+    private val onRemovePhoto: (PlayerPresentation) -> Unit = {}
 ) : RecyclerView.Adapter<ActiveRosterPhotoAdapter.ViewHolder>() {
 
     fun updatePlayers(newPlayers: List<PlayerPresentation>) {
@@ -31,6 +32,7 @@ class ActiveRosterPhotoAdapter(
         val txtRole: TextView = itemView.findViewById(R.id.txtItemPlayerRole)
         val btnRed: Button = itemView.findViewById(R.id.btnItemRedPhoto)
         val btnBlue: Button = itemView.findViewById(R.id.btnItemBluePhoto)
+        val btnRemove: View = itemView.findViewById(R.id.btnItemRemovePhoto)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -54,6 +56,9 @@ class ActiveRosterPhotoAdapter(
         }
         holder.btnBlue.setOnClickListener {
             onSelectBluePhoto(player)
+        }
+        holder.btnRemove.setOnClickListener {
+            onRemovePhoto(player)
         }
     }
 

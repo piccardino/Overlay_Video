@@ -224,9 +224,8 @@ class PhotoMatchingManager(private val context: Context) {
         return "default"
     }
 
-    fun removePhotoForPlayer(name: String) {
+    fun removePhotoForPlayer(name: String, number: String = "") {
         val aliases = extractNameAliases(name)
-        if (aliases.isEmpty()) return
         val editor = prefs.edit()
         for (alias in aliases) {
             editor.remove(alias)
@@ -234,6 +233,15 @@ class PhotoMatchingManager(private val context: Context) {
                 .remove("${alias}_blue")
                 .remove("${alias}_rossa")
                 .remove("${alias}_azzurra")
+        }
+        val numTrimmed = number.trim().replace("[^0-9]".toRegex(), "")
+        if (numTrimmed.isNotBlank()) {
+            val numKey = "num_$numTrimmed"
+            editor.remove(numKey)
+                .remove("${numKey}_red")
+                .remove("${numKey}_blue")
+                .remove("${numKey}_rossa")
+                .remove("${numKey}_azzurra")
         }
         editor.apply()
     }
